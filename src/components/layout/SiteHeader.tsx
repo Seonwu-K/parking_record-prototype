@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/", label: "홈" },
   { href: "/simulate", label: "앱 체험해보기" },
+  { href: "/feedback", label: "설문 참여" },
 ];
 
 export function SiteHeader() {

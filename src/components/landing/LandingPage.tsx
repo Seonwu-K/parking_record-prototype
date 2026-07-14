@@ -15,7 +15,7 @@ const PROBLEM_SOLUTION_PAIRS = [
     solutionDescription: "요금 계산에 참고할 수 있도록 경과 시간을 30분 단위로 알려드려요.",
   },
   {
-    problem: "주차하고 나서 앱을 켜서 기록하는 것 자체를 깜빡한 적은요?",
+    problem: "주차하고 나서 사진을 찍든 메모를 하든, 기록 자체를 깜빡한 적은요?",
     icon: "fa-solid fa-bell",
     solutionTitle: "운행 종료 자동 감지",
     solutionDescription: "운전을 마치고 걷기 시작하면 자동으로 주차 위치를 기록할지 물어봐요.",
