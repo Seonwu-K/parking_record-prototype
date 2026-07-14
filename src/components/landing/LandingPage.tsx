@@ -149,8 +149,7 @@ export function LandingPage() {
           <div>
             <h2 className="text-xl font-black text-slate-900 mb-2">아직 완성된 서비스가 아니에요</h2>
             <p className="text-slate-600 leading-relaxed mb-3">
-              매일 하나의 불편을 골라 가설을 세우고, 작은 프로토타입을 만들어 사용자에게 보여주고, 배운 것을
-              정리해 다음 걸 만드는 방식으로 개발하고 있어요. 지금 이 화면도 그 결과물 중 하나예요.
+              지금은 정식 출시 전 프로토타입 단계로, 사용자 의견을 받아 계속 업데이트하고 있어요.
             </p>
             <p className="text-slate-600 leading-relaxed">
               그래서 완벽하지 않을 수 있어요. 대신 체험 후 남겨주시는 의견은 다음 버전에 실제로 반영돼요.
