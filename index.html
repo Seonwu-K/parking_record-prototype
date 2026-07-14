@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>마지막 주차 - 고정알림 및 홈위젯 지원 프로토타입</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    body {
+      font-family: 'Noto Sans KR', 'Inter', sans-serif;
+      background-color: #f1f5f9;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen text-slate-800 flex flex-col lg:flex-row overflow-x-hidden">
+
+  <!-- 데스크톱용 좌측 사용자 체험 가이드보드 및 센서 조작 컨트롤러 -->
+  <div class="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-6 flex flex-col justify-between shrink-0">
+    <div class="space-y-6">
+      <div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="bg-indigo-600 text-white text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">UT 가이드</span>
+          <span class="text-xs text-slate-400">v2.3 (선택 기능 구분 완료)</span>
+        </div>
+        <h1 class="text-2xl font-black text-slate-900 mb-1 flex items-center gap-2">
+          <i class="fa-solid fa-square-parking text-indigo-600"></i> 마지막 주차
+        </h1>
+        <p class="text-xs text-slate-500">마지막으로 주차한 위치를 10초 만에 쉽고 직관적으로 남겨두는 도구</p>
+      </div>
+
+      <!-- 선택 사항: 가상 센서 조작 컨트롤러 (접기/펼치기 가능하도록 개선) -->
+      <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <!-- 접기/펼치기 제어 헤더 -->
+        <button onclick="toggleSensorController()" class="w-full bg-slate-50 hover:bg-slate-100 p-4 flex justify-between items-center transition-colors text-left">
+          <span class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+            <i class="fa-solid fa-gauge-high text-slate-500"></i>
+            [선택] 가상 센서 조작판
+          </span>
+          <span id="controller-toggle-icon" class="text-xs text-slate-400"><i class="fa-solid fa-chevron-up"></i></span>
+        </button>
+
+        <!-- 컨트롤러 본체 영역 -->
+        <div id="sensor-controller-body" class="p-4 bg-slate-50 border-t border-slate-100 space-y-4 transition-all">
+          <p class="text-[11px] text-slate-500 leading-normal">
+            앱 우측 하단의 홈버튼을 눌러 바탕화면으로 나간 뒤, 아래 버튼들을 순서대로 누르면 차량 탑승 및 하차(보행 전환) 시 스마트 알림이 오는 상황을 인위적으로 시뮬레이션해볼 수 있습니다.
+          </p>
+
+          <!-- 현재 기기 센서 상태판 -->
+          <div class="bg-white rounded-xl p-3 space-y-1.5 border border-slate-200 text-[11px]">
+            <div class="flex justify-between">
+              <span class="text-slate-400 font-medium">활동 상태:</span>
+              <span id="sensor-display-activity" class="font-bold text-slate-700">정지 또는 대기</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400 font-medium">블루투스 연결:</span>
+              <span id="sensor-display-bt" class="font-bold text-rose-500">연결 안 됨</span>
+            </div>
+          </div>
+
+          <!-- 센서 제어 버튼 모음 -->
+          <div class="space-y-1.5 text-xs">
+            <button onclick="triggerSimulatedDriveStart()" class="w-full bg-white hover:bg-slate-100 border border-slate-200 py-2 px-3 rounded-lg flex items-center justify-between text-left font-bold text-slate-700 transition-all">
+              <span>🚗 1단계: 운전 주행 시작하기</span>
+              <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+            </button>
+
+            <button onclick="triggerSimulatedBtConnect()" class="w-full bg-white hover:bg-slate-100 border border-slate-200 py-2 px-3 rounded-lg flex items-center justify-between text-left font-bold text-slate-700 transition-all">
+              <span>🔌 2단계: 차량 블루투스 연결</span>
+              <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+            </button>
+
+            <button onclick="triggerSimulatedDriveEnd()" class="w-full bg-indigo-600 hover:bg-indigo-700 py-2.5 px-3 rounded-lg flex items-center justify-between text-left font-black text-white transition-all shadow-md shadow-indigo-600/10">
+              <span>🚶 3단계: 주행 종료 및 하차 (걷기)</span>
+              <i class="fa-solid fa-bell text-[10px] text-indigo-200"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 단계별 UT 시나리오 안내 -->
+      <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 text-xs text-indigo-950 space-y-3.5">
+        <h3 class="font-bold text-indigo-900 flex items-center gap-2">
+          <i class="fa-solid fa-circle-info text-indigo-600"></i> 검증 시나리오 따라가기
+        </h3>
+        <p class="leading-relaxed text-[11px] text-indigo-900/80">
+          실제 환경처럼 자연스럽게 자동 주차 알림이 발생하는 과정을 순서대로 체험해 보세요.
+        </p>
+        <div class="space-y-3">
+          <div class="flex gap-2 items-start">
+            <span class="bg-indigo-200 text-indigo-800 font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 text-[10px]">1</span>
+            <p class="leading-relaxed">
+              우측 가상 폰에서 우측 상단의 <strong class="text-indigo-900">톱니바퀴(설정)</strong> 버튼을 눌러 블루투스 기기 이름(예: <strong class="text-indigo-900">MyCar</strong>)을 임의로 등록합니다.
+            </p>
+          </div>
+          <div class="flex gap-2 items-start">
+            <span class="bg-indigo-200 text-indigo-800 font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 text-[10px]">2</span>
+            <p class="leading-relaxed">
+              위의 컨트롤러에서 <strong class="text-indigo-900">"운전 주행 시작"</strong>과 <strong class="text-indigo-900">"차량 블루투스 연결"</strong>을 순서대로 눌러 기기 상태를 드라이브 상태로 만들어 줍니다.
+            </p>
+          </div>
+          <div class="flex gap-2 items-start">
+            <span class="bg-indigo-200 text-indigo-800 font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 text-[10px]">3</span>
+            <p class="leading-relaxed">
+              이제 목적지에 도착했다고 생각하고 <strong class="text-indigo-900">"주행 종료 및 하차(걷기)"</strong> 버튼을 누릅니다. 블루투스가 분리되고 활동이 바뀌는 즉시 안내 팝업 알림이 스마트폰 상단에 나타납니다.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 하단 카피라이트 -->
+    <div class="pt-6 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between">
+      <span>마지막 주차 프로토타입 v2.3</span>
+      <span>2026.07</span>
+    </div>
+  </div>
+
+  <!-- 모바일 시뮬레이터 -->
+  <main class="flex-1 flex justify-center items-center p-4 lg:p-8 bg-slate-100 min-h-[700px]">
+    <div class="w-full max-w-[390px] h-[780px] bg-slate-900 rounded-[50px] shadow-2xl border-[12px] border-slate-900 relative overflow-hidden flex flex-col ring-8 ring-slate-800/10 shrink-0">
+
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 bg-slate-900 rounded-b-3xl z-50 flex justify-center items-center">
+        <div class="w-12 h-1.5 bg-slate-800 rounded-full mb-1"></div>
+      </div>
+
+      <!-- 스마트폰 상태바 -->
+      <div onclick="toggleNotificationShade()" class="h-10 bg-white px-6 pt-2 flex justify-between items-center text-xs font-semibold text-slate-800 z-50 shrink-0 cursor-pointer select-none hover:bg-slate-100/80 transition-colors relative">
+        <span id="statusBarTime">13:09</span>
+
+        <div class="absolute left-1/2 top-4 -translate-x-1/2 opacity-50">
+          <div class="w-6 h-1 bg-slate-400 rounded-full"></div>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <!-- 주차 시간 측정용 시계 아이콘 -->
+          <i id="notif-indicator-clock" class="fa-solid fa-clock text-indigo-600 hidden animate-pulse"></i>
+          <!-- 주차 보관 완료 시 상태바에 고정되는 차량 아이콘 -->
+          <i id="notif-indicator-car" class="fa-solid fa-square-parking text-indigo-600 hidden"></i>
+          <i class="fa-solid fa-wifi"></i>
+          <i class="fa-solid fa-signal"></i>
+          <div class="flex items-center gap-0.5">
+            <span class="text-[10px]">98%</span>
+            <i class="fa-solid fa-battery-full text-emerald-600"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 이너 화면 프레임 -->
+      <div class="flex-1 bg-slate-50 flex flex-col relative overflow-hidden select-none">
+
+        <!-- 알림창 (알림 가리기/당기기 형태) -->
+        <div id="notification-shade" class="absolute inset-x-0 top-0 h-full bg-slate-950/95 text-white z-40 flex flex-col justify-between p-5 pb-8 transition-all duration-300 transform -translate-y-full opacity-0 pointer-events-none">
+          <div class="space-y-5">
+            <div class="flex justify-between items-center text-xs text-slate-400">
+              <span id="shade-date" class="font-medium">2026년 7월 13일 월요일</span>
+              <span id="shade-time" class="font-bold text-white">13:09</span>
+            </div>
+
+            <div class="grid grid-cols-4 gap-2">
+              <div class="flex flex-col items-center gap-1">
+                <button class="w-11 h-11 rounded-full bg-indigo-600 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-wifi"></i>
+                </button>
+                <span class="text-[10px] text-slate-300">Wi-Fi</span>
+              </div>
+
+              <div class="flex flex-col items-center gap-1">
+                <button class="w-11 h-11 rounded-full bg-slate-800 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <span class="text-[10px] text-slate-300">소리</span>
+              </div>
+
+              <div class="flex flex-col items-center gap-1">
+                <button class="w-11 h-11 rounded-full bg-slate-800 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-bluetooth"></i>
+                </button>
+                <span class="text-[10px] text-slate-300">블루투스</span>
+              </div>
+
+              <div class="flex flex-col items-center gap-1">
+                <button class="w-11 h-11 rounded-full bg-slate-800 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-flashlight"></i>
+                </button>
+                <span class="text-[10px] text-slate-300">손전등</span>
+              </div>
+            </div>
+
+            <div class="space-y-2.5 pt-3">
+              <div class="flex justify-between items-center px-1">
+                <span class="text-xs font-bold text-slate-400">최근 알림</span>
+                <button onclick="clearNotif()" class="text-[10px] text-slate-500 hover:text-slate-300">지우기</button>
+              </div>
+
+              <!-- 주차 정보 기록이 존재할 때만 고정 노출되는 알림 카드 -->
+              <div id="notif-card-saved" class="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 flex gap-3.5 items-start hidden">
+                <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0">
+                  <i class="fa-solid fa-square-parking text-lg"></i>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-0.5">
+                    <span class="text-xs font-bold text-indigo-400">마지막 주차 위치 고정 알림</span>
+                    <span class="text-[9px] text-slate-500" id="notif-display-time">방금</span>
+                  </div>
+
+                  <h5 class="text-sm font-black text-white" id="notif-display-floorzone">지하 2층 A-13</h5>
+
+                  <div class="flex items-center gap-2 mt-1 flex-wrap">
+                    <p class="text-[11px] text-slate-400 truncate" id="notif-display-memo">2번 엘리베이터 근처</p>
+                    <span id="notif-display-elapsed-badge" class="hidden text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">⏱ 0분 경과</span>
+                  </div>
+
+                  <div class="flex gap-2 mt-3 flex-wrap">
+                    <button onclick="shortcutToDetail()" class="bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 text-[10px] font-bold py-1.5 px-3 rounded-lg border border-indigo-500/30">
+                      자세히 보기
+                    </button>
+
+                    <button onclick="deleteParkingRecord(); toggleNotificationShade();" class="bg-slate-800 text-slate-400 hover:text-red-400 text-[10px] font-bold py-1.5 px-3 rounded-lg">
+                      기록 지우기
+                    </button>
+
+                    <button id="notif-sim-btn" onclick="addTimeOffset(30); event.stopPropagation();" class="hidden bg-amber-600/30 text-amber-300 hover:bg-amber-600/50 text-[10px] font-bold py-1.5 px-3 rounded-lg border border-amber-500/30">
+                      +30분
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 알림 카드: 주차 기록이 없을 때는 카드 보드를 상단에 노출하지 않음 -->
+              <div id="notif-card-empty" class="bg-slate-900/60 border border-slate-800/40 rounded-2xl p-4 text-center py-6">
+                <i class="fa-solid fa-car-side text-slate-600 text-xl mb-1.5"></i>
+                <p class="text-xs text-slate-400">현재 보관된 주차 위치가 없습니다.</p>
+                <p class="text-[10px] text-slate-500 mt-1">상태바 고정 카드는 주차 저장 시에만 나타납니다.</p>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="toggleNotificationShade()" class="w-full flex justify-center py-2 text-slate-500 hover:text-white">
+            <i class="fa-solid fa-chevron-up text-sm"></i>
+          </button>
+        </div>
+
+        <!-- 시스템 런처 -->
+        <section id="screen-system-launcher" class="absolute inset-0 flex flex-col justify-between p-5 z-20 transition-all duration-300 transform translate-x-full bg-cover bg-center" style="background-image: linear-gradient(to bottom, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.8)), url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop');">
+          <div class="space-y-4">
+            <div class="flex justify-between items-center text-white px-2 pt-2">
+              <div>
+                <span class="text-4xl font-light tracking-tight" id="launcher-clock">13:09</span>
+                <p id="launcher-date" class="text-[10px] font-semibold text-white/80">7월 13일 월요일</p>
+              </div>
+
+              <div class="text-right">
+                <span class="text-xs font-semibold">
+                  <i class="fa-solid fa-cloud-sun text-yellow-400 text-base mr-1"></i>
+                  성남시 분당구
+                </span>
+                <p class="text-[10px] font-medium text-white/80">구름 조금, 26°C</p>
+              </div>
+            </div>
+
+            <!-- 바탕화면 대형 위젯 -->
+            <div id="homescreen-widget" class="bg-white/90 backdrop-blur-md rounded-3xl p-4 border border-white/20 shadow-xl shadow-slate-950/30">
+              <div class="flex justify-between items-center pb-2 border-b border-slate-200/50 mb-3">
+                <span class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1">
+                  <i class="fa-solid fa-square-parking"></i>
+                  마지막 주차 위젯
+                </span>
+                <span class="text-[9px] text-slate-400 font-medium" id="widget-display-time">업데이트: 미등록</span>
+              </div>
+
+              <div id="widget-body-saved" class="flex gap-3 items-center hidden">
+                <div class="w-14 h-14 bg-slate-200 rounded-xl overflow-hidden shrink-0 border border-slate-200">
+                  <img id="widget-display-photo" class="w-full h-full object-cover hidden" alt="위젯 사진">
+                  <div id="widget-display-photo-placeholder" class="text-slate-400 w-full h-full flex items-center justify-center">
+                    <i class="fa-regular fa-image text-lg"></i>
+                  </div>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                  <h4 class="text-sm font-black text-slate-800 leading-tight">
+                    <span id="widget-display-floor">지하 2층</span>
+                    <span id="widget-display-zone" class="text-indigo-600 ml-1">A-13</span>
+                  </h4>
+
+                  <p class="text-[10px] text-slate-500 truncate mt-1" id="widget-display-memo">2번 엘리베이터 앞</p>
+
+                  <div id="widget-display-elapsed-container" class="hidden items-center gap-1.5 mt-1 text-[10px] font-black text-amber-600 bg-amber-100/60 px-2 py-0.5 rounded-lg w-max">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span id="widget-display-elapsed">경과: 0분</span>
+
+                    <button onclick="addTimeOffset(30); event.stopPropagation();" class="text-[8px] bg-amber-600 text-white font-bold px-1 rounded hover:bg-amber-700">
+                      +30분
+                    </button>
+                  </div>
+
+                  <div class="flex gap-1.5 mt-2.5">
+                    <button onclick="shortcutToDetail()" class="text-[9px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-1 rounded-md">
+                      상세 보기
+                    </button>
+
+                    <button onclick="navigateTo('record')" class="text-[9px] bg-slate-200 text-slate-600 font-bold px-2.5 py-1 rounded-md">
+                      새 기록
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="widget-body-empty" class="text-center py-3">
+                <p class="text-xs text-slate-500 font-bold mb-2">🚗 저장된 주차 위치 정보가 없습니다</p>
+
+                <button onclick="shortcutToApp('record')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-4 rounded-xl shadow-sm">
+                  주차 기록 시작하기
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 하단 독 아이콘 목록 -->
+          <div class="grid grid-cols-4 gap-3 bg-white/10 backdrop-blur-md p-3.5 rounded-3xl border border-white/10">
+            <div class="flex flex-col items-center gap-1 cursor-pointer" onclick="shortcutToApp('home-empty')">
+              <div class="w-12 h-12 bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white rounded-2xl flex items-center justify-center text-2xl shadow-md">
+                <i class="fa-solid fa-square-parking"></i>
+              </div>
+              <span class="text-[9px] text-white font-medium">마지막 주차</span>
+            </div>
+
+            <div class="flex flex-col items-center gap-1 opacity-60">
+              <div class="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-xl">
+                <i class="fa-solid fa-phone"></i>
+              </div>
+              <span class="text-[9px] text-white font-medium">전화</span>
+            </div>
+
+            <div class="flex flex-col items-center gap-1 opacity-60">
+              <div class="w-12 h-12 bg-slate-700 text-white rounded-2xl flex items-center justify-center text-xl">
+                <i class="fa-solid fa-message"></i>
+              </div>
+              <span class="text-[9px] text-white font-medium">메시지</span>
+            </div>
+
+            <div class="flex flex-col items-center gap-1 opacity-60">
+              <div class="w-12 h-12 bg-indigo-900 text-white rounded-2xl flex items-center justify-center text-xl">
+                <i class="fa-solid fa-camera"></i>
+              </div>
+              <span class="text-[9px] text-white font-medium">카메라</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 빈 홈 -->
+        <section id="screen-home-empty" class="absolute inset-0 bg-white flex flex-col justify-between p-6 z-30 transition-all duration-300 transform translate-x-0">
+          <div class="flex justify-between items-center py-2 border-b border-slate-100">
+            <span class="text-xl font-extrabold text-indigo-900 tracking-tight flex items-center gap-1.5">
+              <i class="fa-solid fa-square-parking text-indigo-600"></i>
+              마지막 주차
+            </span>
+
+            <div class="flex items-center gap-2">
+              <button onclick="navigateTo('settings')" class="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500">
+                <i class="fa-solid fa-gear"></i>
+              </button>
+              <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                <i class="fa-solid fa-circle-user text-lg"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex-1 flex flex-col justify-center items-center text-center px-4">
+            <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 border-4 border-slate-100 animate-pulse">
+              <i class="fa-solid fa-car-tunnel text-4xl text-slate-300"></i>
+            </div>
+
+            <h2 class="text-lg font-bold text-slate-800 mb-2">마지막으로 주차한 위치가 없습니다</h2>
+
+            <p class="text-sm text-slate-400 leading-relaxed">
+              층, 구역, 사진과 메모를 간단하게 남겨보세요.
+            </p>
+          </div>
+
+          <div class="pb-6">
+            <button onclick="navigateTo('record')" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-transform text-white py-4 px-6 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-indigo-600/20">
+              <i class="fa-solid fa-camera text-xl"></i>
+              <span>주차 위치 기록하기</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- 저장된 홈 -->
+        <section id="screen-home-saved" class="absolute inset-0 bg-slate-50 flex flex-col justify-between p-6 z-20 transition-all duration-300 transform translate-x-full">
+          <div class="flex justify-between items-center py-2 border-b border-slate-100 shrink-0">
+            <span class="text-xl font-extrabold text-indigo-900 tracking-tight flex items-center gap-1.5">
+              <i class="fa-solid fa-square-parking text-indigo-600"></i>
+              마지막 주차
+            </span>
+
+            <div class="flex items-center gap-2">
+              <button onclick="navigateTo('settings')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600">
+                <i class="fa-solid fa-gear"></i>
+              </button>
+              <span class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full font-bold">기록 보관됨</span>
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto no-scrollbar py-4 space-y-4">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">가장 최근 저장된 차량 위치</p>
+
+            <div onclick="navigateTo('detail')" class="bg-white rounded-3xl border border-slate-200/80 shadow-md overflow-hidden cursor-pointer active:scale-[0.99] transition-transform">
+              <div class="p-5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white flex justify-between items-center">
+                <div>
+                  <p class="text-xs text-white/70 font-semibold mb-0.5">내 차 주차 위치</p>
+
+                  <h3 class="text-2xl font-black flex items-baseline gap-2">
+                    <span id="saved-display-floor">지하 2층</span>
+                    <span id="saved-display-zone" class="text-indigo-200 text-xl font-bold">A-13</span>
+                  </h3>
+                </div>
+
+                <div class="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center text-white text-xl">
+                  <i class="fa-solid fa-map-pin"></i>
+                </div>
+              </div>
+
+              <div class="relative h-44 bg-slate-100 flex items-center justify-center overflow-hidden">
+                <img id="saved-display-photo" src="" alt="주차 사진" class="w-full h-full object-cover hidden">
+
+                <div id="saved-display-photo-placeholder" class="text-slate-400 flex flex-col items-center gap-1">
+                  <i class="fa-regular fa-image text-3xl"></i>
+                  <span class="text-xs">등록된 사진 없음</span>
+                </div>
+
+                <div class="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-md text-white text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 font-medium">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  자세히 보기
+                </div>
+              </div>
+
+              <div class="p-4 space-y-3">
+                <div id="home-display-elapsed-container" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl justify-between items-center">
+                  <div class="flex gap-2 items-start">
+                    <i class="fa-solid fa-circle-notch text-amber-500 mt-1 animate-spin"></i>
+
+                    <div>
+                      <p class="text-[10px] text-amber-700 font-bold">주차 시간 측정 중</p>
+                      <p id="home-display-elapsed" class="text-xs text-amber-900 font-extrabold mt-0.5">현재: 0분째 주차 중</p>
+                    </div>
+                  </div>
+
+                  <button onclick="addTimeOffset(30); event.stopPropagation();" class="text-[10px] bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-1 rounded-lg">
+                    +30분
+                  </button>
+                </div>
+
+                <div class="flex items-start gap-2 px-1">
+                  <i class="fa-solid fa-note-sticky text-slate-400 text-xs mt-0.5"></i>
+                  <p id="saved-display-memo" class="text-xs text-slate-600 font-medium leading-relaxed break-words">
+                    메모 없음
+                  </p>
+                </div>
+
+                <div id="saved-time-track-status" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-xl items-center gap-2">
+                  <i class="fa-solid fa-clock text-amber-600"></i>
+
+                  <div>
+                    <p class="text-xs font-bold text-amber-900">주차 시간 알림 사용 중</p>
+                    <p class="text-[10px] text-amber-700 mt-0.5">30분 단위 경과 시간 안내가 활성화되어 있습니다.</p>
+                  </div>
+                </div>
+
+                <div class="flex justify-between items-center text-[10px] text-slate-400 px-1">
+                  <span class="flex items-center gap-1">
+                    <i class="fa-regular fa-clock"></i>
+                    <span id="saved-display-time">2026.07.13 13:09</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-indigo-50 text-indigo-900 text-xs p-3.5 rounded-2xl border border-indigo-100/70 flex gap-2.5 items-start">
+              <i class="fa-solid fa-info text-indigo-600 mt-0.5 shrink-0"></i>
+              <p class="leading-relaxed">
+                카드를 터치하면 원본 사진 확인, 정보 수정, 기록 삭제를 수행할 수 있습니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="space-y-2 pb-2 shrink-0">
+            <button onclick="navigateTo('record')" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-md">
+              <i class="fa-solid fa-rotate-left"></i>
+              <span>새 주차 위치 기록하기</span>
+            </button>
+
+            <button onclick="deleteParkingRecord()" class="w-full bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 py-3 rounded-xl font-bold text-xs">
+              <i class="fa-regular fa-trash-can mr-1"></i>
+              주차 기록 지우기
+            </button>
+          </div>
+        </section>
+
+        <!-- 기록 화면 -->
+        <section id="screen-record" class="absolute inset-0 bg-white flex flex-col justify-between p-6 z-10 transition-all duration-300 transform translate-x-full">
+          <div class="flex justify-between items-center py-2 border-b border-slate-100 shrink-0">
+            <button onclick="backToPrevScreen()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-700">
+              <i class="fa-solid fa-arrow-left"></i>
+            </button>
+
+            <span class="text-base font-bold text-slate-800">주차 기록하기</span>
+          </div>
+
+          <div class="flex-1 overflow-y-auto no-scrollbar py-4 space-y-4">
+            <div class="space-y-2 relative z-10">
+              <label class="text-xs font-black text-slate-600 flex items-center gap-1.5">
+                <span class="bg-indigo-100 text-indigo-700 w-4 h-4 rounded-full flex items-center justify-center text-[9px]">1</span>
+                주차 층 구분 및 선택
+              </label>
+
+              <div class="grid grid-cols-2 gap-2 h-10">
+                <button type="button" id="floor-type-B" onclick="setFloorType('지하')" class="floor-type-btn w-full h-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2 font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm">
+                  <i class="fa-solid fa-arrow-turn-down text-[10px]"></i>
+                  지하주차장
+                </button>
+
+                <button type="button" id="floor-type-F" onclick="setFloorType('지상')" class="floor-type-btn w-full h-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2 font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm">
+                  <i class="fa-solid fa-arrow-turn-up text-[10px]"></i>
+                  지상주차장
+                </button>
+              </div>
+
+              <div class="grid grid-cols-3 gap-1.5 pt-2 relative z-20">
+                <button type="button" data-floor="1" onclick="setFloorNum('1')" class="floor-btn w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2.5 font-bold rounded-lg">1층</button>
+                <button type="button" data-floor="2" onclick="setFloorNum('2')" class="floor-btn w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2.5 font-bold rounded-lg">2층</button>
+                <button type="button" data-floor="3" onclick="setFloorNum('3')" class="floor-btn w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2.5 font-bold rounded-lg">3층</button>
+                <button type="button" data-floor="4" onclick="setFloorNum('4')" class="floor-btn w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2.5 font-bold rounded-lg">4층</button>
+                <button type="button" data-floor="5" onclick="setFloorNum('5')" class="floor-btn w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2.5 font-bold rounded-lg">5층</button>
+                <button type="button" data-floor="custom" onclick="setFloorNum('custom')" class="floor-btn w-full bg-slate-50 border border-slate-200 text-slate-700 text-[11px] py-2.5 font-bold rounded-lg">직접 입력</button>
+              </div>
+
+              <div id="custom-floor-container" class="hidden pt-2.5">
+                <input type="text" id="input-custom-floor" placeholder="예) 7, M2, 옥상" oninput="updateCustomFloorPreview()" class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl py-2.5 px-4 text-xs font-semibold text-slate-800 placeholder:text-slate-400">
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-black text-slate-600 flex items-center gap-1.5">
+                <span class="bg-indigo-100 text-indigo-700 w-4 h-4 rounded-full flex items-center justify-center text-[9px]">2</span>
+                주차 구역 입력
+              </label>
+
+              <input type="text" id="input-zone" placeholder="예) A-13, 203동 기둥" class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl py-3 px-4 text-xs font-medium text-slate-800 placeholder:text-slate-400">
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-black text-slate-600 flex items-center gap-1.5">
+                <span class="bg-indigo-100 text-indigo-700 w-4 h-4 rounded-full flex items-center justify-center text-[9px]">3</span>
+                주차 위치 사진 추가
+              </label>
+
+              <div class="grid grid-cols-2 gap-3">
+                <button type="button" onclick="triggerSimulatedCamera()" class="flex flex-col items-center justify-center bg-indigo-50/50 hover:bg-indigo-50 border border-dashed border-indigo-200 rounded-xl py-3 text-indigo-600">
+                  <i class="fa-solid fa-camera text-lg mb-1"></i>
+                  <span class="text-[10px] font-bold">가상 카메라 촬영</span>
+                </button>
+
+                <button type="button" onclick="triggerDemoPhoto()" class="flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-200 rounded-xl py-3 text-slate-600">
+                  <i class="fa-solid fa-image text-lg mb-1"></i>
+                  <span class="text-[10px] font-bold">샘플 사진 적용</span>
+                </button>
+              </div>
+
+              <div id="photo-preview-container" class="hidden relative h-28 bg-slate-100 rounded-xl overflow-hidden mt-1 border border-slate-200">
+                <img id="photo-preview" class="w-full h-full object-cover" alt="주차구역 프리뷰">
+
+                <button onclick="clearPhoto()" class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-black text-slate-600 flex items-center gap-1.5">
+                <span class="bg-indigo-100 text-indigo-700 w-4 h-4 rounded-full flex items-center justify-center text-[9px]">4</span>
+                간단한 메모
+              </label>
+
+              <input type="text" id="input-memo" placeholder="예) 입구 바로 옆 엘리베이터 근처" class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl py-3 px-4 text-xs font-medium text-slate-800 placeholder:text-slate-400">
+            </div>
+
+            <div class="space-y-1.5 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <label class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                  <i class="fa-solid fa-clock text-indigo-600"></i>
+                  유료 주차 시간 알림 받기
+                </label>
+
+                <p class="text-[10px] text-slate-400 mt-1 leading-normal">
+                  체크 시 경과 시간을 기록하고 30분 단위 안내 알림을 표시합니다.
+                </p>
+              </div>
+
+              <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                <input type="checkbox" id="input-time-track" class="sr-only peer">
+
+                <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-100/70 rounded-xl p-3 flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <span class="flex h-2 w-2 relative">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+
+                <span class="text-[10px] text-indigo-800 font-semibold">1초 빠른 정보 입력</span>
+              </div>
+
+              <button type="button" onclick="autoFillMockData()" class="bg-white hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1 px-2.5 rounded-lg border border-indigo-200 shadow-sm">
+                자동 입력
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-3 pb-2 shrink-0">
+            <button onclick="saveParkingData()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white py-4 rounded-2xl font-bold text-sm shadow-md">
+              현재 위치 저장하기
+            </button>
+          </div>
+        </section>
+
+        <!-- 저장 성공 -->
+        <section id="screen-success" class="absolute inset-0 bg-white flex flex-col justify-between p-6 z-10 transition-all duration-300 transform translate-x-full">
+          <div class="flex-1 flex flex-col justify-center items-center py-6 text-center">
+            <div class="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-6 border-4 border-indigo-100">
+              <i class="fa-solid fa-circle-check text-4xl text-indigo-600"></i>
+            </div>
+
+            <h2 class="text-xl font-bold text-slate-900 mb-6">주차 위치를 저장했습니다.</h2>
+
+            <div class="w-full bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-4">
+              <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+                <span class="text-xs text-slate-400">주차 위치</span>
+
+                <span class="text-base font-black text-indigo-900">
+                  <span id="success-display-floor">지하 2층</span>
+                  <span id="success-display-zone" class="text-slate-600 ml-1">A-13</span>
+                </span>
+              </div>
+
+              <div class="h-24 bg-slate-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                <img id="success-display-photo" class="w-full h-full object-cover hidden" alt="주차 사진">
+
+                <div id="success-display-photo-placeholder" class="text-slate-400 flex items-center gap-1 text-[11px]">
+                  <i class="fa-regular fa-image"></i>
+                  <span>사진 없이 저장됨</span>
+                </div>
+              </div>
+
+              <div class="text-left space-y-1">
+                <div class="flex gap-2 text-xs">
+                  <span class="text-slate-400 font-medium shrink-0">메모</span>
+                  <span id="success-display-memo" class="text-slate-700 font-semibold truncate">2번 엘리베이터 앞</span>
+                </div>
+
+                <div class="flex gap-2 text-xs">
+                  <span class="text-slate-400 font-medium shrink-0">일시</span>
+                  <span id="success-display-time" class="text-slate-500 font-semibold truncate">2026.07.13 13:09</span>
+                </div>
+
+                <div id="success-display-time-track-tag" class="hidden text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1 px-2 rounded-lg mt-2 w-max items-center gap-1">
+                  <i class="fa-solid fa-clock"></i>
+                  주차 시간 자동 측정 작동 중
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pb-2 shrink-0">
+            <button onclick="navigateTo('home-saved')" class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white py-4 rounded-2xl font-bold text-sm shadow-md">
+              홈에서 확인하기
+            </button>
+          </div>
+        </section>
+
+        <!-- 상세 화면 -->
+        <section id="screen-detail" class="absolute inset-0 bg-white flex flex-col justify-between p-6 z-10 transition-all duration-300 transform translate-x-full">
+          <div class="flex justify-between items-center py-2 border-b border-slate-100 shrink-0">
+            <button onclick="navigateTo('home-saved')" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-700">
+              <i class="fa-solid fa-arrow-left"></i>
+            </button>
+
+            <span class="text-base font-bold text-slate-800">상세 주차 정보</span>
+            <div class="w-8"></div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto no-scrollbar py-4 space-y-4">
+            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl p-5 flex items-center justify-between shadow-sm">
+              <div>
+                <span class="text-[10px] text-indigo-200 bg-indigo-900/50 px-2 py-0.5 rounded-md font-bold">마지막 주차</span>
+
+                <h4 class="text-2xl font-black mt-1">
+                  <span id="detail-display-floor">지하 2층</span>
+                  <span id="detail-display-zone" class="text-indigo-300 ml-1">A-13</span>
+                </h4>
+              </div>
+
+              <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-car text-lg"></i>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <span class="text-xs font-bold text-slate-400">저장된 주차 구역 사진</span>
+
+              <div class="bg-slate-100 rounded-2xl overflow-hidden h-52 flex items-center justify-center border border-slate-200">
+                <img id="detail-display-photo" class="w-full h-full object-cover hidden" alt="저장된 사진">
+
+                <div id="detail-display-photo-placeholder" class="text-slate-400 flex flex-col items-center gap-1">
+                  <i class="fa-regular fa-image text-3xl"></i>
+                  <span class="text-xs">사진이 기록되지 않았습니다</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <span class="text-xs font-bold text-slate-400">저장한 메모</span>
+
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <p id="detail-display-memo" class="text-xs text-slate-700 font-bold leading-relaxed">2번 엘리베이터 앞</p>
+              </div>
+            </div>
+
+            <div id="detail-display-time-track-container" class="hidden justify-between items-center text-xs p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <span class="text-amber-800 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-clock"></i>
+                주차 시간 측정
+              </span>
+
+              <span class="font-extrabold text-amber-900 bg-amber-200/50 px-2 py-0.5 rounded">활성화됨</span>
+            </div>
+
+            <div class="flex justify-between items-center text-xs text-slate-400 px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
+              <span>기록 일시</span>
+              <span id="detail-display-time" class="font-bold text-slate-600">2026.07.13 13:09</span>
+            </div>
+          </div>
+
+          <div class="space-y-2 pb-2 shrink-0">
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="editParking()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold text-xs">
+                <i class="fa-solid fa-pen-to-square mr-1"></i>
+                정보 수정
+              </button>
+
+              <button onclick="deleteParkingRecord()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 py-3 rounded-xl font-bold text-xs">
+                <i class="fa-regular fa-trash-can mr-1"></i>
+                기록 삭제
+              </button>
+            </div>
+
+            <button onclick="resetForm(); navigateTo('record')" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white py-3.5 rounded-xl font-bold text-xs">
+              새 주차 기록 덮어쓰기
+            </button>
+          </div>
+        </section>
+
+        <!-- 설정 화면 -->
+        <section id="screen-settings" class="absolute inset-0 bg-white flex flex-col justify-between p-6 z-30 transition-all duration-300 transform translate-x-full">
+          <div class="flex justify-between items-center py-2 border-b border-slate-100 shrink-0">
+            <button onclick="backToPrevScreen()" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-700">
+              <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <span class="text-base font-bold text-slate-800">설정</span>
+            <div class="w-8"></div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto no-scrollbar py-4 space-y-5">
+            <!-- 자동 주행 종료 설정 -->
+            <div class="space-y-2.5">
+              <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider">알림 및 연동</h4>
+
+              <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <label class="text-xs font-black text-slate-700">
+                    自动 주행 종료 감지 알림
+                  </label>
+                  <p class="text-[10px] text-slate-400 mt-1 leading-normal">
+                    운전 종료 후 걷기 상태로 바뀔 때 주차 유도 알림을 띄웁니다.
+                  </p>
+                </div>
+
+                <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input type="checkbox" id="setting-auto-detect" class="sr-only peer" checked onchange="toggleAutoDetectSetting(this.checked)">
+                  <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+            </div>
+
+            <!-- 블루투스 등록 설정 -->
+            <div class="space-y-2.5">
+              <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider">블루투스 연동 (선택 사항)</h4>
+
+              <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div class="flex-1 min-w-0">
+                  <label class="text-xs font-black text-slate-700">
+                    차량 블루투스 기기 등록
+                  </label>
+                  <p class="text-[10px] text-slate-400 mt-1 leading-normal">
+                    차량 블루투스가 끊기고 걷기 상태가 될 때 감지 정확도를 높여 알림을 보냅니다.
+                  </p>
+                </div>
+
+                <div class="flex gap-2">
+                  <input type="text" id="input-bt-device" placeholder="예: My_Car_BT" class="flex-1 bg-white border border-slate-200 focus:border-indigo-500 rounded-lg py-2 px-3 text-xs font-semibold text-slate-800">
+                  <button onclick="registerBtDevice()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-3 rounded-lg">등록</button>
+                </div>
+
+                <div id="bt-status-badge" class="hidden text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 p-1.5 px-2 rounded-lg mt-1 w-max items-center gap-1">
+                  <i class="fa-solid fa-link"></i> <span id="bt-status-badge-text">My_Car_BT 등록됨</span>
+                  <button onclick="removeBtDevice()" class="text-slate-400 hover:text-red-500 ml-1.5"><i class="fa-solid fa-circle-xmark"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pb-2 shrink-0">
+            <button onclick="backToPrevScreen()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-sm">
+              설정 저장 완료
+            </button>
+          </div>
+        </section>
+
+        <!-- 자동 차량 하차 종료 감지 유도 푸시 알림 -->
+        <div id="simulated-arrival-push-alert" class="absolute top-12 inset-x-4 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl z-50 flex items-start gap-3 border border-indigo-500/20 transition-all duration-500 transform -translate-y-full opacity-0 pointer-events-none">
+          <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-location-dot text-white text-lg"></i>
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-center mb-0.5">
+              <span class="text-[11px] font-black text-indigo-400">자동 운행 감지 알림</span>
+              <span class="text-[9px] text-slate-400">방금</span>
+            </div>
+
+            <h4 class="text-xs font-bold text-white">📍 차량 이동 종료 감지됨</h4>
+            <p class="text-[10px] text-slate-300 mt-0.5" id="arrival-alert-desc">운전이 끝나고 하차하신 것 같습니다. 주차 위치를 기록하시겠습니까?</p>
+
+            <div class="flex gap-1.5 mt-2.5">
+              <button onclick="hideArrivalPushAlert()" class="text-[9px] bg-slate-800 text-slate-300 font-bold px-2.5 py-1 rounded">
+                나중에
+              </button>
+
+              <button onclick="confirmArrivalAndRecord()" class="text-[9px] bg-indigo-600 text-white font-bold px-3 py-1 rounded">
+                지금 기록하기
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 블루투스 미등록 시 안내 팝업 모달 (신규 추가) -->
+        <div id="simulated-bt-alert" class="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-6 opacity-0 pointer-events-none transition-all duration-300">
+          <div class="bg-white rounded-3xl p-6 w-full max-w-[320px] text-center space-y-4 shadow-2xl transform scale-90 transition-all duration-300" id="simulated-bt-alert-card">
+            <div class="w-14 h-14 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto border-4 border-rose-100">
+              <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+            </div>
+
+            <div class="space-y-1.5">
+              <h3 class="text-base font-black text-slate-900">블루투스 연결 불가</h3>
+              <p class="text-xs text-slate-500 leading-relaxed">
+                아직 앱 설정에서 차량 블루투스를 등록하지 않았습니다. 기기 연동을 위해 설정을 열고 블루투스 등록을 마쳐주세요.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1.5 text-xs font-bold">
+              <button onclick="hideBtAlert()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl transition-colors">
+                닫기
+              </button>
+              <button onclick="hideBtAlert(); navigateTo('settings');" class="bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl transition-colors shadow-md shadow-indigo-600/10">
+                설정 열기
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CUSTOM TOAST -->
+        <div id="toast" class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-[11px] py-2.5 px-4 rounded-xl shadow-lg flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none z-50 min-w-[200px] justify-center">
+          <i id="toast-icon" class="fa-solid fa-circle-info text-indigo-400"></i>
+          <span id="toast-msg">주차 정보가 업데이트되었습니다.</span>
+        </div>
+      </div>
+
+      <!-- 안드로이드 내비게이션 바 -->
+      <div class="h-12 bg-white flex justify-around items-center text-slate-400 text-sm border-t border-slate-100 z-40 shrink-0 select-none">
+        <button onclick="backToPrevScreen()" class="hover:text-slate-700 w-12 h-12 flex items-center justify-center">
+          <i class="fa-solid fa-play fa-rotate-180 text-xs"></i>
+        </button>
+
+        <button onclick="navigateToLauncher()" class="hover:text-slate-700 w-12 h-12 flex items-center justify-center">
+          <span class="w-4 h-4 rounded-full border-2 border-slate-400 hover:border-slate-700 inline-block"></span>
+        </button>
+
+        <button onclick="showQuickInfo()" class="hover:text-indigo-600 w-12 h-12 flex items-center justify-center">
+          <i class="fa-regular fa-square text-xs"></i>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'last_parking_data_v2.0';
+
+    const appState = {
+      currentScreen: 'home-empty',
+      screenHistory: ['home-empty'],
+      parkingRecord: null,
+      tempSelectedFloorType: '',
+      tempSelectedFloorNum: '',
+      tempPhoto: null,
+      isNotificationOpen: false,
+      timeOffsetMinutes: 0,
+      lastNotifiedThreshold: 0,
+
+      // 센서 동기화 옵션 설정
+      isAutoDetectEnabled: true,
+      registeredBtDevice: '',
+
+      // 가상 기기 센서 실시간 값 상태 홀더
+      deviceActivity: 'resting', // 'resting', 'driving', 'walking'
+      deviceBtConnected: false,   // 블루투스 연결 여부
+      deviceBtName: ''
+    };
+
+    const demoParkingPhotos = [
+      'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600&auto=format&fit=crop'
+    ];
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function setText(id, value) {
+      const element = $(id);
+      if (element) {
+        element.innerText = value;
+      }
+    }
+
+    // 신규 추가: 블루투스 미등록 알림 모달 출력/제거 로직
+    function showBtAlert() {
+      const modal = $('simulated-bt-alert');
+      const card = $('simulated-bt-alert-card');
+      if (!modal || !card) return;
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      modal.classList.add('opacity-100');
+
+      card.classList.remove('scale-90');
+      card.classList.add('scale-100');
+    }
+
+    function hideBtAlert() {
+      const modal = $('simulated-bt-alert');
+      const card = $('simulated-bt-alert-card');
+      if (!modal || !card) return;
+
+      modal.classList.remove('opacity-100');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+
+      card.classList.remove('scale-100');
+      card.classList.add('scale-90');
+    }
+
+    function showElement(id, displayClass = null) {
+      const element = $(id);
+      if (!element) return;
+      element.classList.remove('hidden');
+      if (displayClass) {
+        element.classList.add(displayClass);
+      }
+    }
+
+    function hideElement(id, displayClass = null) {
+      const element = $(id);
+      if (!element) return;
+      element.classList.add('hidden');
+      if (displayClass) {
+        element.classList.remove(displayClass);
+      }
+    }
+
+    function toggleImage(imageId, placeholderId, src) {
+      const image = $(imageId);
+      const placeholder = $(placeholderId);
+      if (!image || !placeholder) return;
+
+      if (src) {
+        image.src = src;
+        image.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+      } else {
+        image.removeAttribute('src');
+        image.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+      }
+    }
+
+    window.addEventListener('load', () => {
+      updateClock();
+      setInterval(updateClock, 1000);
+      setInterval(updateElapsedTimes, 1000);
+
+      loadStoredParkingRecord();
+      loadSettings();
+      renderFloorButtons();
+      applyStateToDOM();
+    });
+
+    // 앱 설정 로드 및 동기화
+    function loadSettings() {
+      const isAutoStr = localStorage.getItem('setting_auto_detect');
+      const btDeviceStr = localStorage.getItem('setting_bt_device');
+
+      if (isAutoStr !== null) {
+        appState.isAutoDetectEnabled = isAutoStr === 'true';
+      }
+      if (btDeviceStr !== null) {
+        appState.registeredBtDevice = btDeviceStr;
+      }
+
+      const autoDetectInput = $('setting-auto-detect');
+      if (autoDetectInput) {
+        autoDetectInput.checked = appState.isAutoDetectEnabled;
+      }
+
+      const btInput = $('input-bt-device');
+      if (btInput) {
+        btInput.value = appState.registeredBtDevice;
+      }
+
+      syncBtSettingsUI();
+    }
+
+    function toggleAutoDetectSetting(checked) {
+      appState.isAutoDetectEnabled = checked;
+      localStorage.setItem('setting_auto_detect', checked);
+      showToast(checked ? '자동 운행 종료 감지가 활성화되었습니다.' : '자동 운행 종료 감지가 중단되었습니다.');
+    }
+
+    function registerBtDevice() {
+      const input = $('input-bt-device');
+      if (!input) return;
+
+      const deviceName = input.value.trim();
+      if (!deviceName) {
+        showToast('등록할 블루투스 기기명을 입력해 주세요.', 'warning');
+        return;
+      }
+
+      appState.registeredBtDevice = deviceName;
+      localStorage.setItem('setting_bt_device', deviceName);
+      syncBtSettingsUI();
+      showToast(`블루투스 기기 [${deviceName}] 등록 완료`);
+    }
+
+    function removeBtDevice() {
+      appState.registeredBtDevice = '';
+      localStorage.removeItem('setting_bt_device');
+      const input = $('input-bt-device');
+      if (input) input.value = '';
+      syncBtSettingsUI();
+      showToast('등록된 차량 블루투스 기기가 제거되었습니다.');
+    }
+
+    function syncBtSettingsUI() {
+      const badge = $('bt-status-badge');
+      const badgeText = $('bt-status-badge-text');
+
+      if (badge && badgeText) {
+        if (appState.registeredBtDevice) {
+          badgeText.innerText = `${appState.registeredBtDevice} 등록됨`;
+          badge.classList.remove('hidden');
+          badge.classList.add('flex');
+        } else {
+          badge.classList.add('hidden');
+          badge.classList.remove('flex');
+        }
+      }
+    }
+
+    /* ----------------------------------------------------
+       좌측 제어용 센서 조작 시뮬레이터 로직
+       ---------------------------------------------------- */
+
+    // 1단계: 운전 시작 클릭 시
+    function triggerSimulatedDriveStart() {
+      appState.deviceActivity = 'driving';
+      setText('sensor-display-activity', '운전 중 (시속 40km/h 주행)');
+      showToast('차량 운전 주행 상태가 감지되었습니다.');
+    }
+
+    // 2단계: 차량 블루투스 연결 클릭 시
+    function triggerSimulatedBtConnect() {
+      // 신규 추가: 블루투스 등록을 하지 않은 채 연결 버튼을 클릭했을 때의 유도 지침
+      if (!appState.registeredBtDevice) {
+        const btIndicator = $('sensor-display-bt');
+        if (btIndicator) {
+          btIndicator.innerText = '등록 후 연결 가능';
+          btIndicator.className = 'font-bold text-rose-500 animate-pulse';
+        }
+        showBtAlert();
+        showToast('앱 설정에서 기기 등록이 선행되어야 합니다.', 'warning');
+        return;
+      }
+
+      appState.deviceBtConnected = true;
+      appState.deviceBtName = appState.registeredBtDevice;
+
+      const indicator = $('sensor-display-bt');
+      if (indicator) {
+        indicator.innerText = `${appState.registeredBtDevice} 연결됨`;
+        indicator.className = 'font-bold text-emerald-400';
+      }
+      showToast(`블루투스 기기 [${appState.registeredBtDevice}] 연결 성공`, 'success');
+    }
+
+    // 3단계: 하차 후 걷기 상태 전환 클릭 시 (핵심 트리거 격발)
+    function triggerSimulatedDriveEnd() {
+      const previousActivity = appState.deviceActivity;
+      const previousBtConnected = appState.deviceBtConnected;
+
+      // 센서 상태 변화
+      appState.deviceActivity = 'walking';
+      setText('sensor-display-activity', '하차 및 도보 걷기');
+
+      let btTriggered = false;
+
+      // 만약 차량 블루투스가 연결되어 있었다면, 시동이 꺼지면서 접속 해제 처리
+      if (appState.deviceBtConnected) {
+        appState.deviceBtConnected = false;
+        btTriggered = true;
+
+        const indicator = $('sensor-display-bt');
+        if (indicator) {
+          indicator.innerText = '연결 해제됨';
+          indicator.className = 'font-bold text-rose-400';
+        }
+      }
+
+      showToast('시동 종료 및 보행 전환 상태를 감지했습니다.');
+
+      // 자동 알림 조건 판별
+      if (!appState.isAutoDetectEnabled) {
+        // 자동 감지가 꺼져있을 땐 트리거 생략
+        return;
+      }
+
+      // 조건 검증:
+      // 1) 블루투스가 등록되어 있고, 블루투스 연결 해제와 동시에 걷기 전환이 수반되었을 때
+      // 2) 혹은 블루투스가 없는 상황이더라도 운전중에서 걷기로의 직접 전환이 일어났을 때
+      const isBluetoothPath = appState.registeredBtDevice && btTriggered;
+      const isPureMotionPath = !appState.registeredBtDevice && previousActivity === 'driving';
+
+      if (isBluetoothPath || isPureMotionPath) {
+        window.setTimeout(() => {
+          triggerArrivalPushAlert(isBluetoothPath);
+        }, 800);
+      }
+    }
+
+    function triggerArrivalPushAlert(isBluetoothPath = false) {
+      const pushAlert = $('simulated-arrival-push-alert');
+      const descText = $('arrival-alert-desc');
+
+      if (!pushAlert) return;
+
+      if (isBluetoothPath) {
+        descText.innerText = `차량 블루투스(${appState.registeredBtDevice}) 해제 및 보행 상태를 인식했습니다. 마지막 주차 위치를 기록하시겠습니까?`;
+      } else {
+        descText.innerText = '차량 이동 상태에서 걷기 상태로의 전환을 감지했습니다. 주차 위치를 기록하시겠습니까?';
+      }
+
+      pushAlert.classList.remove('-translate-y-full', 'opacity-0', 'pointer-events-none');
+      pushAlert.classList.add('translate-y-0', 'opacity-100');
+    }
+
+    function hideArrivalPushAlert() {
+      const pushAlert = $('simulated-arrival-push-alert');
+      if (!pushAlert) return;
+
+      pushAlert.classList.remove('translate-y-0', 'opacity-100');
+      pushAlert.classList.add('-translate-y-full', 'opacity-0', 'pointer-events-none');
+    }
+
+    function confirmArrivalAndRecord() {
+      hideArrivalPushAlert();
+      navigateTo('record');
+    }
+
+    /* ----------------------------------------------------
+       기본 스마트폰 시계 및 공통 바인딩 처리
+       ---------------------------------------------------- */
+
+    function loadStoredParkingRecord() {
+      const raw = localStorage.getItem(STORAGE_KEY)
+        || localStorage.getItem('last_parking_data_v1.9');
+
+      if (!raw) return;
+
+      try {
+        const parsed = JSON.parse(raw);
+
+        if (!parsed.savedAtTimestamp) {
+          parsed.savedAtTimestamp = Date.now();
+        }
+
+        appState.parkingRecord = parsed;
+        appState.currentScreen = 'home-saved';
+        appState.screenHistory = ['home-saved'];
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      } catch (error) {
+        console.error('스토어 파싱 실패:', error);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const timeStr = `${hours}:${minutes}`;
+
+      const weekday = ['일', '월', '화', '수', '목', '금', '토'][now.getDay()];
+      const fullDate = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${weekday}요일`;
+      const shortDate = `${now.getMonth() + 1}월 ${now.getDate()}일 ${weekday}요일`;
+
+      setText('statusBarTime', timeStr);
+      setText('launcher-clock', timeStr);
+      setText('shade-time', timeStr);
+      setText('shade-date', fullDate);
+      setText('launcher-date', shortDate);
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = $('toast');
+      const icon = $('toast-icon');
+      const msg = $('toast-msg');
+
+      if (!toast || !icon || !msg) return;
+
+      msg.innerText = message;
+
+      if (type === 'success') {
+        icon.className = 'fa-solid fa-circle-check text-emerald-400';
+      } else if (type === 'warning') {
+        icon.className = 'fa-solid fa-triangle-exclamation text-amber-400';
+      } else {
+        icon.className = 'fa-solid fa-circle-info text-indigo-400';
+      }
+
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+
+      window.clearTimeout(showToast.timeoutId);
+
+      showToast.timeoutId = window.setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2200);
+    }
+
+    function toggleNotificationShade() {
+      const shade = $('notification-shade');
+      if (!shade) return;
+
+      if (appState.isNotificationOpen) {
+        shade.classList.remove('translate-y-0', 'opacity-100');
+        shade.classList.add('-translate-y-full', 'opacity-0', 'pointer-events-none');
+      } else {
+        shade.classList.remove('-translate-y-full', 'opacity-0', 'pointer-events-none');
+        shade.classList.add('translate-y-0', 'opacity-100');
+      }
+
+      appState.isNotificationOpen = !appState.isNotificationOpen;
+    }
+
+    function closeNotificationShade() {
+      if (appState.isNotificationOpen) {
+        toggleNotificationShade();
+      }
+    }
+
+    function navigateToLauncher() {
+      closeNotificationShade();
+      navigateTo('system-launcher');
+    }
+
+    function shortcutToDetail() {
+      closeNotificationShade();
+      navigateTo(appState.parkingRecord ? 'detail' : 'record');
+    }
+
+    function shortcutToApp(fallbackScreen) {
+      closeNotificationShade();
+      navigateTo(appState.parkingRecord ? 'home-saved' : fallbackScreen);
+    }
+
+    function navigateTo(screenId, options = {}) {
+      closeNotificationShade();
+
+      let nextScreen = screenId;
+
+      if (nextScreen === 'home-saved' && !appState.parkingRecord) {
+        nextScreen = 'home-empty';
+      }
+
+      appState.currentScreen = nextScreen;
+
+      if (options.replaceHistory) {
+        appState.screenHistory = [nextScreen];
+      } else if (appState.screenHistory[appState.screenHistory.length - 1] !== nextScreen) {
+        appState.screenHistory.push(nextScreen);
+      }
+
+      applyStateToDOM();
+    }
+
+    function backToPrevScreen() {
+      closeNotificationShade();
+
+      if (appState.currentScreen === 'system-launcher') {
+        showToast('현재 휴대폰 홈 화면입니다.');
+        return;
+      }
+
+      if (appState.screenHistory.length <= 1) {
+        navigateTo('system-launcher');
+        return;
+      }
+
+      appState.screenHistory.pop();
+      appState.currentScreen = appState.screenHistory[appState.screenHistory.length - 1];
+      applyStateToDOM();
+    }
+
+    function setFloorType(type) {
+      appState.tempSelectedFloorType = type;
+      renderFloorButtons();
+    }
+
+    function setFloorNum(num) {
+      appState.tempSelectedFloorNum = num;
+      renderFloorButtons();
+
+      if (num === 'custom') {
+        window.setTimeout(() => {
+          $('input-custom-floor')?.focus();
+        }, 50);
+      }
+    }
+
+    function renderFloorButtons() {
+      const btnB = $('floor-type-B');
+      const btnF = $('floor-type-F');
+
+      if (!btnB || !btnF) return;
+
+      const activeClass = 'w-full h-full bg-indigo-600 text-white border border-indigo-600 text-xs py-2 font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm';
+      const inactiveClass = 'w-full h-full bg-slate-50 text-slate-700 border border-slate-200 hover:bg-indigo-50 text-xs py-2 font-bold rounded-xl transition-all flex items-center justify-center gap-1.5';
+
+      btnB.className = appState.tempSelectedFloorType === '지하' ? activeClass : inactiveClass;
+      btnF.className = appState.tempSelectedFloorType === '지상' ? activeClass : inactiveClass;
+
+      document.querySelectorAll('.floor-btn').forEach((button) => {
+        const isSelected = appState.tempSelectedFloorNum === button.dataset.floor;
+
+        button.className = isSelected
+          ? 'floor-btn w-full bg-indigo-600 text-white border border-indigo-600 text-xs py-2.5 font-bold rounded-lg transition-all text-center shadow-sm'
+          : 'floor-btn w-full bg-slate-50 text-slate-700 border border-slate-200 hover:bg-indigo-50 text-xs py-2.5 font-bold rounded-lg transition-all text-center';
+      });
+
+      const customContainer = $('custom-floor-container');
+
+      if (customContainer) {
+        customContainer.classList.toggle('hidden', appState.tempSelectedFloorNum !== 'custom');
+      }
+
+      updateCameraPillarFloor();
+    }
+
+    function updateCameraPillarFloor() {
+      const prefix = appState.tempSelectedFloorType || '지하';
+      const num = appState.tempSelectedFloorNum;
+      const customValue = $('input-custom-floor')?.value.trim() || '';
+
+      let text = `${prefix} ?층`;
+
+      if (num === 'custom') {
+        text = customValue ? `${prefix} ${customValue}` : `${prefix} ?층`;
+      } else if (num) {
+        text = `${prefix} ${num}층`;
+      }
+
+      setText('camera-pillar-floor', text);
+    }
+
+    function updateCustomFloorPreview() {
+      updateCameraPillarFloor();
+    }
+
+    function triggerSimulatedCamera() {
+      const zoneValue = $('input-zone')?.value.trim() || '';
+      setText('camera-pillar-zone', zoneValue || 'A-13');
+
+      const overlay = $('camera-overlay');
+      if (!overlay) return;
+
+      overlay.classList.remove('translate-y-full', 'pointer-events-none', 'opacity-0');
+      overlay.classList.add('translate-y-0', 'opacity-100');
+    }
+
+    function closeCamera() {
+      const overlay = $('camera-overlay');
+      if (!overlay) return;
+
+      overlay.classList.remove('translate-y-0', 'opacity-100');
+      overlay.classList.add('translate-y-full', 'pointer-events-none', 'opacity-0');
+    }
+
+    function setPreviewPhoto(src) {
+      appState.tempPhoto = src;
+
+      const container = $('photo-preview-container');
+      const image = $('photo-preview');
+
+      if (!container || !image) return;
+
+      image.src = src;
+      container.classList.remove('hidden');
+    }
+
+    function captureMockPhoto() {
+      setPreviewPhoto(demoParkingPhotos[0]);
+      closeCamera();
+      showToast('차량 위치 사진이 촬영되었습니다.', 'success');
+    }
+
+    function triggerDemoPhoto() {
+      setPreviewPhoto(demoParkingPhotos[1]);
+      showToast('샘플 사진이 적용되었습니다.');
+    }
+
+    function clearPhoto() {
+      appState.tempPhoto = null;
+
+      const container = $('photo-preview-container');
+      const image = $('photo-preview');
+
+      container?.classList.add('hidden');
+      image?.removeAttribute('src');
+
+      showToast('사진이 지워졌습니다.');
+    }
+
+    function autoFillMockData() {
+      setFloorType('지하');
+      setFloorNum('2');
+
+      if ($('input-zone')) $('input-zone').value = 'A-13';
+      if ($('input-memo')) $('input-memo').value = '2번 엘리베이터 근처';
+      if ($('input-time-track')) $('input-time-track').checked = true;
+
+      setPreviewPhoto(demoParkingPhotos[0]);
+      showToast('지하 2층 A-13 및 알림 정보가 입력되었습니다.');
+    }
+
+    function buildFloorLabel(customFloorValue) {
+      const type = appState.tempSelectedFloorType;
+      const number = appState.tempSelectedFloorNum;
+
+      if (type) {
+        if (number === 'custom') {
+          return customFloorValue ? `${type} ${customFloorValue}` : `${type} 지정층`;
+        }
+
+        if (number) {
+          return `${type} ${number}층`;
+        }
+
+        return `${type} 주차장`;
+      }
+
+      if (number === 'custom') {
+        return customFloorValue || '지정층';
+      }
+
+      if (number) {
+        return `${number}층`;
+      }
+
+      return '지정되지 않음';
+    }
+
+    function saveParkingData() {
+      const zoneValue = $('input-zone')?.value.trim() || '';
+      const memoValue = $('input-memo')?.value.trim() || '';
+      const customFloorValue = $('input-custom-floor')?.value.trim() || '';
+      const isTimeTrackEnabled = $('input-time-track')?.checked || false;
+
+      const hasAnyData =
+        appState.tempSelectedFloorType ||
+        appState.tempSelectedFloorNum ||
+        zoneValue ||
+        appState.tempPhoto ||
+        memoValue;
+
+      if (!hasAnyData) {
+        showToast('최소한 한 종류의 데이터는 기록해야 합니다.', 'warning');
+        return;
+      }
+
+      if (appState.tempSelectedFloorNum === 'custom' && !customFloorValue) {
+        showToast('직접 입력할 층 정보를 작성해 주세요.', 'warning');
+        return;
+      }
+
+      const now = new Date();
+      const timestamp = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      appState.parkingRecord = {
+        floorType: appState.tempSelectedFloorType,
+        floorNum: appState.tempSelectedFloorNum,
+        customFloorValue,
+        floor: buildFloorLabel(customFloorValue),
+        zone: zoneValue || '구역 미입력',
+        photo: appState.tempPhoto,
+        memo: memoValue || '메모 없음',
+        timestamp,
+        savedAtTimestamp: now.getTime(),
+        isTimeTrackEnabled
+      };
+
+      appState.timeOffsetMinutes = 0;
+      appState.lastNotifiedThreshold = 0;
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.parkingRecord));
+
+      navigateTo('success');
+      showToast('성공적으로 저장되었습니다.', 'success');
+    }
+
+    function deleteParkingRecord() {
+      appState.parkingRecord = null;
+      appState.timeOffsetMinutes = 0;
+      appState.lastNotifiedThreshold = 0;
+      appState.isNotificationOpen = false;
+
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('last_parking_data_v1.9');
+
+      resetForm();
+      hidePushAlert();
+
+      const shade = $('notification-shade');
+      shade?.classList.remove('translate-y-0', 'opacity-100');
+      shade?.classList.add('-translate-y-full', 'opacity-0', 'pointer-events-none');
+
+      navigateTo('home-empty', { replaceHistory: true });
+      showToast('기존 주차 기록이 삭제되었습니다.');
+    }
+
+    function editParking() {
+      const record = appState.parkingRecord;
+      if (!record) return;
+
+      appState.tempSelectedFloorType = record.floorType || '';
+      appState.tempSelectedFloorNum = record.floorNum || '';
+      appState.tempPhoto = record.photo || null;
+
+      if ($('input-custom-floor')) {
+        $('input-custom-floor').value = record.customFloorValue || '';
+      }
+
+      if ($('input-zone')) {
+        $('input-zone').value = record.zone === '구역 미입력' ? '' : record.zone;
+      }
+
+      if ($('input-memo')) {
+        $('input-memo').value = record.memo === '메모 없음' ? '' : record.memo;
+      }
+
+      if ($('input-time-track')) {
+        $('input-time-track').checked = Boolean(record.isTimeTrackEnabled);
+      }
+
+      if (record.photo) {
+        setPreviewPhoto(record.photo);
+      } else {
+        $('photo-preview-container')?.classList.add('hidden');
+        $('photo-preview')?.removeAttribute('src');
+      }
+
+      renderFloorButtons();
+      navigateTo('record');
+      showToast('기존 정보를 편집할 수 있습니다.');
+    }
+
+    function resetForm() {
+      appState.tempSelectedFloorType = '';
+      appState.tempSelectedFloorNum = '';
+      appState.tempPhoto = null;
+
+      if ($('input-zone')) $('input-zone').value = '';
+      if ($('input-memo')) $('input-memo').value = '';
+      if ($('input-custom-floor')) $('input-custom-floor').value = '';
+      if ($('input-time-track')) $('input-time-track').checked = false;
+
+      $('photo-preview-container')?.classList.add('hidden');
+      $('photo-preview')?.removeAttribute('src');
+
+      renderFloorButtons();
+    }
+
+    function clearNotif() {
+      if (!appState.parkingRecord) {
+        showToast('지울 주차 기록이 없습니다.');
+        return;
+      }
+      deleteParkingRecord();
+    }
+
+    function addTimeOffset(minutes) {
+      if (!appState.parkingRecord) return;
+
+      appState.timeOffsetMinutes += minutes;
+      updateElapsedTimes();
+
+      showToast(`시간을 ${minutes}분 앞으로 이동했습니다.`);
+    }
+
+    function getElapsedMinutes() {
+      const record = appState.parkingRecord;
+      if (!record) return 0;
+
+      const savedTimestamp = Number(record.savedAtTimestamp) || Date.now();
+      const realElapsedMinutes = Math.floor((Date.now() - savedTimestamp) / 60000);
+
+      return Math.max(0, realElapsedMinutes + appState.timeOffsetMinutes);
+    }
+
+    function updateElapsedTimes() {
+      const record = appState.parkingRecord;
+
+      if (!record) {
+        hideElement('home-display-elapsed-container', 'flex');
+        hideElement('widget-display-elapsed-container', 'flex');
+        hideElement('notif-display-elapsed-badge');
+        hideElement('notif-indicator-clock');
+        return;
+      }
+
+      if (!record.isTimeTrackEnabled) {
+        hideElement('home-display-elapsed-container', 'flex');
+        hideElement('widget-display-elapsed-container', 'flex');
+        hideElement('notif-display-elapsed-badge');
+        hideElement('notif-indicator-clock');
+        return;
+      }
+
+      const totalElapsedMinutes = getElapsedMinutes();
+      const hours = Math.floor(totalElapsedMinutes / 60);
+      const minutes = totalElapsedMinutes % 60;
+
+      const elapsedText = hours > 0
+        ? `${hours}시간 ${minutes}분째 주차 중`
+        : `${minutes}분째 주차 중`;
+
+      showElement('home-display-elapsed-container', 'flex');
+      setText('home-display-elapsed', `현재: ${elapsedText}`);
+
+      showElement('widget-display-elapsed-container', 'flex');
+      setText('widget-display-elapsed', `경과: ${totalElapsedMinutes}분`);
+
+      showElement('notif-display-elapsed-badge');
+      setText('notif-display-elapsed-badge', `⏱ ${totalElapsedMinutes}분 경과`);
+
+      showElement('notif-indicator-clock');
+
+      if (
+        totalElapsedMinutes > 0 &&
+        totalElapsedMinutes % 30 === 0 &&
+        appState.lastNotifiedThreshold !== totalElapsedMinutes
+      ) {
+        appState.lastNotifiedThreshold = totalElapsedMinutes;
+        triggerSimulatedPushAlert(totalElapsedMinutes);
+      }
+    }
+
+    function triggerSimulatedPushAlert(minutes) {
+      const push = $('simulated-push-alert');
+      if (!push) return;
+
+      const hours = Math.floor(minutes / 60);
+      const restMinutes = minutes % 60;
+
+      let elapsedLabel = '';
+
+      if (hours > 0) {
+        elapsedLabel += `${hours}시간`;
+      }
+
+      if (restMinutes > 0) {
+        elapsedLabel += `${hours > 0 ? ' ' : ''}${restMinutes}분`;
+      }
+
+      setText('push-alert-title', `주차 후 ${elapsedLabel} 경과했습니다.`);
+      setText('push-alert-desc', '주차 시간을 확인해 보세요.');
+
+      push.classList.remove('-translate-y-full', 'opacity-0', 'pointer-events-none');
+      push.classList.add('translate-y-0', 'opacity-100');
+
+      showToast(`[알림] 주차 시간 ${minutes}분 경과`, 'warning');
+    }
+
+    function hidePushAlert() {
+      const push = $('simulated-push-alert');
+      if (!push) return;
+
+      push.classList.remove('translate-y-0', 'opacity-100');
+      push.classList.add('-translate-y-full', 'opacity-0', 'pointer-events-none');
+    }
+
+    function applyStateToDOM() {
+      const screens = [
+        'home-empty',
+        'home-saved',
+        'record',
+        'success',
+        'detail',
+        'system-launcher',
+        'settings'
+      ];
+
+      screens.forEach((screen) => {
+        const element = $(`screen-${screen}`);
+        if (!element) return;
+
+        const isCurrent = screen === appState.currentScreen;
+
+        element.classList.toggle('translate-x-0', isCurrent);
+        element.classList.toggle('translate-x-full', !isCurrent);
+      });
+
+      const record = appState.parkingRecord;
+
+      // 주차 데이터가 존재하지 않을 때 상단 알림 영역의 주차 안내 카드를 노출하지 않음
+      if (!record) {
+        hideElement('notif-indicator-car');
+        hideElement('notif-indicator-clock');
+
+        hideElement('notif-card-saved');
+        showElement('notif-card-empty'); // 알림창 빈 상태 안내 보드 노출
+
+        hideElement('widget-body-saved');
+        showElement('widget-body-empty');
+
+        setText('widget-display-time', '업데이트: 미등록');
+
+        hideElement('home-display-elapsed-container', 'flex');
+        hideElement('widget-display-elapsed-container', 'flex');
+        hideElement('notif-display-elapsed-badge');
+        hideElement('saved-time-track-status', 'flex');
+
+        return;
+      }
+
+      showElement('notif-indicator-car');
+
+      // 홈 바인딩
+      setText('saved-display-floor', record.floor);
+      setText('saved-display-zone', record.zone);
+      setText('saved-display-memo', record.memo);
+      setText('saved-display-time', `기록 시각: ${record.timestamp}`);
+      toggleImage('saved-display-photo', 'saved-display-photo-placeholder', record.photo);
+
+      if (record.isTimeTrackEnabled) {
+        showElement('saved-time-track-status', 'flex');
+      } else {
+        hideElement('saved-time-track-status', 'flex');
+      }
+
+      // 저장 성공 바인딩
+      setText('success-display-floor', record.floor);
+      setText('success-display-zone', record.zone);
+      setText('success-display-memo', record.memo);
+      setText('success-display-time', record.timestamp);
+      toggleImage('success-display-photo', 'success-display-photo-placeholder', record.photo);
+
+      if (record.isTimeTrackEnabled) {
+        showElement('success-display-time-track-tag', 'flex');
+      } else {
+        hideElement('success-display-time-track-tag', 'flex');
+      }
+
+      // 상세 바인딩
+      setText('detail-display-floor', record.floor);
+      setText('detail-display-zone', record.zone);
+      setText('detail-display-memo', record.memo);
+      setText('detail-display-time', record.timestamp);
+      toggleImage('detail-display-photo', 'detail-display-photo-placeholder', record.photo);
+
+      if (record.isTimeTrackEnabled) {
+        showElement('detail-display-time-track-container', 'flex');
+      } else {
+        hideElement('detail-display-time-track-container', 'flex');
+      }
+
+      // 상태바 아래 고정 알림 카드 활성화
+      showElement('notif-card-saved');
+      hideElement('notif-card-empty');
+
+      setText('notif-display-floorzone', `${record.floor} ${record.zone}`);
+      setText('notif-display-memo', record.memo);
+      setText('notif-display-time', record.timestamp.split(' ')[1] || '방금');
+
+      if (record.isTimeTrackEnabled) {
+        showElement('notif-sim-btn');
+      } else {
+        hideElement('notif-sim-btn');
+      }
+
+      // 홈 위젯 데이터 갱신
+      showElement('widget-body-saved');
+      hideElement('widget-body-empty');
+
+      setText('widget-display-floor', record.floor);
+      setText('widget-display-zone', record.zone);
+      setText('widget-display-memo', record.memo);
+      setText('widget-display-time', `업데이트: ${record.timestamp.split(' ')[1] || '-'}`);
+      toggleImage('widget-display-photo', 'widget-display-photo-placeholder', record.photo);
+
+      updateElapsedTimes();
+    }
+
+    function showQuickInfo() {
+      showToast('마지막 주차 프로토타입 v2.2 입니다.');
+    }
+  </script>
+</body>
+</html>
