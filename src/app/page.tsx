@@ -1,5 +1,5 @@
-import { ParkingApp } from "@/components/parking/ParkingApp";
+import { LandingPage } from "@/components/landing/LandingPage";
 
 export default function Home() {
-  return <ParkingApp />;
+  return <LandingPage />;
 }

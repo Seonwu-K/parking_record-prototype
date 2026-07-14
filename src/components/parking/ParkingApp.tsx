@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useParkingApp } from "./useParkingApp";
 import { SensorGuidePanel } from "./SensorGuidePanel";
 import { NotificationShade } from "./NotificationShade";
@@ -14,15 +15,23 @@ import { DetailScreen } from "./screens/DetailScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SystemLauncherScreen } from "./screens/SystemLauncherScreen";
 
-export function ParkingApp() {
+export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) {
   const app = useParkingApp();
+  const hasNotifiedRef = useRef(false);
+
+  useEffect(() => {
+    if (app.currentScreen === "success" && !hasNotifiedRef.current) {
+      hasNotifiedRef.current = true;
+      onSaveComplete?.();
+    }
+  }, [app.currentScreen, onSaveComplete]);
 
   if (!app.hydrated) {
-    return <div className="min-h-screen bg-slate-100" />;
+    return <div className="flex-1 bg-slate-100" />;
   }
 
   return (
-    <div className="min-h-screen text-slate-800 flex flex-col lg:flex-row overflow-x-hidden">
+    <div className="flex-1 text-slate-800 flex flex-col lg:flex-row overflow-x-hidden">
       <SensorGuidePanel
         deviceActivity={app.deviceActivity}
         deviceBtConnected={app.deviceBtConnected}
