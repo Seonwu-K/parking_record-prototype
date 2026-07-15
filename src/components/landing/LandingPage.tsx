@@ -130,41 +130,44 @@ export function LandingPage() {
 
       {/* 차량 위치 찾기 비주얼 */}
       <section className="bg-slate-50 border-y border-slate-200">
-        <div className="max-w-5xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-10 items-start">
-          <div>
+        <div className="max-w-5xl mx-auto px-6 py-20">
+          <div className="mb-10">
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3">
               차량 위치, 헤매지 않고 찾아가요
             </h2>
-            <p className="text-slate-500 leading-relaxed mb-6">
+            <p className="text-slate-500 leading-relaxed max-w-2xl">
               저장된 차량 위치와 지금 내 위치를 함께 보여주고, 거리와 방향을 안내해요. 넓은 야외 주차장에서도
               걸어가야 할 방향이 한눈에 보여요.
             </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-6 items-start">
             <MiniMap
               distanceMeters={120}
               bearingDeg={45}
               directionLabel="북동"
               caption="예시 화면이에요. 실제 거리와 방향은 저장된 위치 기준으로 계산돼요."
             />
-          </div>
 
-          <div className="bg-white border border-slate-200 rounded-3xl p-8">
-            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-tree text-emerald-600"></i>
-              야외·지상 주차장에서 가장 잘 동작해요
-            </h3>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm text-slate-600 mb-5">
-              {TARGET_PLACES.map((place) => (
-                <li key={place} className="flex items-start gap-1.5">
-                  <i className="fa-solid fa-check text-emerald-500 text-xs mt-1"></i>
-                  <span>{place}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 flex gap-2.5">
-              <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
-              <p className="text-xs text-amber-800 leading-relaxed">
-                지하 또는 실내 주차장에서는 위치가 부정확하거나 건물 입구 위치로 저장될 수 있어요.
-              </p>
+            <div className="bg-white border border-slate-200 rounded-3xl p-8">
+              <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <i className="fa-solid fa-tree text-emerald-600"></i>
+                야외·지상 주차장에서 가장 잘 동작해요
+              </h3>
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm text-slate-600 mb-5">
+                {TARGET_PLACES.map((place) => (
+                  <li key={place} className="flex items-start gap-1.5">
+                    <i className="fa-solid fa-check text-emerald-500 text-xs mt-1"></i>
+                    <span>{place}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 flex gap-2.5">
+                <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  지하 또는 실내 주차장에서는 위치가 부정확하거나 건물 입구 위치로 저장될 수 있어요.
+                </p>
+              </div>
             </div>
           </div>
         </div>
