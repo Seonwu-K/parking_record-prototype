@@ -130,7 +130,7 @@ export function LandingPage() {
 
       {/* 차량 위치 찾기 비주얼 */}
       <section className="bg-slate-50 border-y border-slate-200">
-        <div className="max-w-5xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-10 items-center">
+        <div className="max-w-5xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-10 items-start">
           <div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3">
               차량 위치, 헤매지 않고 찾아가요
