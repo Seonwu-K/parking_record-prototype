@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PhonePreview } from "./PhonePreview";
-import { CompassCard } from "@/components/shared/CompassCard";
+import { MiniMap } from "@/components/shared/MiniMap";
 
 const PROBLEM_SOLUTION_PAIRS = [
   {
@@ -139,7 +139,7 @@ export function LandingPage() {
               저장된 차량 위치와 지금 내 위치를 함께 보여주고, 거리와 방향을 안내해요. 넓은 야외 주차장에서도
               걸어가야 할 방향이 한눈에 보여요.
             </p>
-            <CompassCard
+            <MiniMap
               distanceMeters={120}
               bearingDeg={45}
               directionLabel="북동"

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { bearingToDirectionLabel, generateCarLocationHint } from "./constants";
-import { CompassCard } from "../shared/CompassCard";
+import { MiniMap } from "../shared/MiniMap";
 
 export function CarFinder() {
   const [open, setOpen] = useState(false);
@@ -21,7 +21,7 @@ export function CarFinder() {
   }
 
   return (
-    <CompassCard
+    <MiniMap
       distanceMeters={hint.distanceMeters}
       bearingDeg={hint.bearingDeg}
       directionLabel={bearingToDirectionLabel(hint.bearingDeg)}
