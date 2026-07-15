@@ -4,16 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEMO_PARKING_PHOTOS,
   LEGACY_STORAGE_KEY,
-  SETTING_AUTO_DETECT_KEY,
-  SETTING_BT_DEVICE_KEY,
+  SETTING_AUTO_SAVE_KEY,
   STORAGE_KEY,
   buildFloorLabel,
   formatTimestamp,
+  generateAccuracyMeters,
 } from "./constants";
 import type {
+  AutoSaveNoticeState,
   DeviceActivity,
   ParkingFormState,
   ParkingRecord,
+  RecordSource,
   ScreenId,
   ToastState,
   ToastType,
@@ -26,13 +28,12 @@ const EMPTY_FORM: ParkingFormState = {
   zone: "",
   photo: null,
   memo: "",
-  isTimeTrackEnabled: false,
 };
 
 function loadStoredRecord(): ParkingRecord | null {
   if (typeof window === "undefined") return null;
 
-  const raw = window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
+  const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
 
   try {
@@ -40,7 +41,6 @@ function loadStoredRecord(): ParkingRecord | null {
     if (!parsed.savedAtTimestamp) {
       parsed.savedAtTimestamp = Date.now();
     }
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
     return parsed;
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
@@ -59,19 +59,20 @@ export function useParkingApp() {
   const [timeOffsetMinutes, setTimeOffsetMinutes] = useState(0);
   const [toast, setToast] = useState<ToastState>(null);
 
-  const [isAutoDetectEnabled, setIsAutoDetectEnabled] = useState(true);
-  const [registeredBtDevice, setRegisteredBtDevice] = useState("");
+  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
   const [deviceActivity, setDeviceActivity] = useState<DeviceActivity>("resting");
-  const [deviceBtConnected, setDeviceBtConnected] = useState(false);
 
-  const [arrivalAlert, setArrivalAlert] = useState<{ visible: boolean; isBluetoothPath: boolean }>({
+  const [autoSaveNotice, setAutoSaveNotice] = useState<AutoSaveNoticeState>({
     visible: false,
-    isBluetoothPath: false,
+    accuracyMeters: 0,
   });
-  const [btAlertVisible, setBtAlertVisible] = useState(false);
 
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastNotifiedThresholdRef = useRef(0);
+  const parkingRecordRef = useRef<ParkingRecord | null>(null);
+  useEffect(() => {
+    parkingRecordRef.current = parkingRecord;
+  }, [parkingRecord]);
 
   // 초기 로드: localStorage(외부 저장소)에 있던 주차 기록/설정을 마운트 시 한 번만 동기화한다.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -83,11 +84,10 @@ export function useParkingApp() {
       setScreenHistory(["home-saved"]);
     }
 
-    const isAutoStr = window.localStorage.getItem(SETTING_AUTO_DETECT_KEY);
-    if (isAutoStr !== null) setIsAutoDetectEnabled(isAutoStr === "true");
+    const isAutoStr = window.localStorage.getItem(SETTING_AUTO_SAVE_KEY);
+    if (isAutoStr !== null) setIsAutoSaveEnabled(isAutoStr === "true");
 
-    const btDeviceStr = window.localStorage.getItem(SETTING_BT_DEVICE_KEY);
-    if (btDeviceStr !== null) setRegisteredBtDevice(btDeviceStr);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
 
     setHydrated(true);
   }, []);
@@ -113,21 +113,26 @@ export function useParkingApp() {
     setIsNotificationOpen((prev) => !prev);
   }, []);
 
-  const navigateTo = useCallback(
-    (screenId: ScreenId, options?: { replaceHistory?: boolean }) => {
-      setIsNotificationOpen(false);
+  // parkingRecord를 막 저장한 직후(같은 이벤트 틱)에는 ref 동기화 effect가 아직 돌지 않았을 수 있으므로,
+  // navigateTo의 "기록 없으면 home-empty로" 가드를 거치지 않고 곧장 home-saved로 이동시킨다.
+  const goToHomeSavedNow = useCallback(() => {
+    setIsNotificationOpen(false);
+    setCurrentScreen("home-saved");
+    setScreenHistory(["home-saved"]);
+  }, []);
 
-      const nextScreen: ScreenId = screenId === "home-saved" && !parkingRecord ? "home-empty" : screenId;
+  const navigateTo = useCallback((screenId: ScreenId, options?: { replaceHistory?: boolean }) => {
+    setIsNotificationOpen(false);
 
-      setCurrentScreen(nextScreen);
-      setScreenHistory((prevHistory) => {
-        if (options?.replaceHistory) return [nextScreen];
-        if (prevHistory[prevHistory.length - 1] === nextScreen) return prevHistory;
-        return [...prevHistory, nextScreen];
-      });
-    },
-    [parkingRecord]
-  );
+    const nextScreen: ScreenId = screenId === "home-saved" && !parkingRecordRef.current ? "home-empty" : screenId;
+
+    setCurrentScreen(nextScreen);
+    setScreenHistory((prevHistory) => {
+      if (options?.replaceHistory) return [nextScreen];
+      if (prevHistory[prevHistory.length - 1] === nextScreen) return prevHistory;
+      return [...prevHistory, nextScreen];
+    });
+  }, []);
 
   const backToPrevScreen = useCallback(() => {
     setIsNotificationOpen(false);
@@ -151,7 +156,7 @@ export function useParkingApp() {
   const navigateToLauncher = useCallback(() => navigateTo("system-launcher"), [navigateTo]);
 
   const shortcutToDetail = useCallback(() => {
-    navigateTo(parkingRecord ? "detail" : "record");
+    navigateTo(parkingRecord ? "detail" : "home-empty");
   }, [navigateTo, parkingRecord]);
 
   const shortcutToApp = useCallback(
@@ -204,45 +209,72 @@ export function useParkingApp() {
       zone: "A-13",
       photo: DEMO_PARKING_PHOTOS[0],
       memo: "2번 엘리베이터 근처",
-      isTimeTrackEnabled: true,
     });
-    showToast("지하 2층 A-13 및 알림 정보가 입력되었습니다.");
+    showToast("지하 2층 A-13 정보가 입력되었습니다.");
   }, [showToast]);
 
-  const saveParkingData = useCallback(() => {
-    const hasAnyData = form.floorType || form.floorNum || form.zone.trim() || form.photo || form.memo.trim();
+  // 현재 위치 + 시간을 새 주차 기록으로 즉시 저장한다 (자동 감지 또는 수동 버튼 모두 이 함수를 탄다).
+  const saveLocationSnapshot = useCallback(
+    (source: RecordSource) => {
+      const savedAt = new Date();
+      const record: ParkingRecord = {
+        floorType: "",
+        floorNum: "",
+        customFloorValue: "",
+        floor: "",
+        zone: "",
+        photo: null,
+        memo: "",
+        timestamp: formatTimestamp(savedAt),
+        savedAtTimestamp: savedAt.getTime(),
+        accuracyMeters: generateAccuracyMeters(),
+        source,
+      };
 
-    if (!hasAnyData) {
-      showToast("최소한 한 종류의 데이터는 기록해야 합니다.", "warning");
-      return;
-    }
+      setParkingRecord(record);
+      setTimeOffsetMinutes(0);
+      lastNotifiedThresholdRef.current = 0;
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+      resetForm();
 
+      return record;
+    },
+    [resetForm]
+  );
+
+  const recordLocationManually = useCallback(() => {
+    saveLocationSnapshot("manual");
+    goToHomeSavedNow();
+    showToast("현재 위치가 저장되었습니다.", "success");
+  }, [goToHomeSavedNow, saveLocationSnapshot, showToast]);
+
+  // 층/구역/사진/메모 같은 선택 정보만 저장 (위치·시간은 이미 저장되어 있음)
+  const saveDetails = useCallback(() => {
     if (form.floorNum === "custom" && !form.customFloorValue.trim()) {
       showToast("직접 입력할 층 정보를 작성해 주세요.", "warning");
       return;
     }
 
-    const savedAt = new Date();
-    const record: ParkingRecord = {
-      floorType: form.floorType,
-      floorNum: form.floorNum,
-      customFloorValue: form.customFloorValue,
-      floor: buildFloorLabel(form.floorType, form.floorNum, form.customFloorValue),
-      zone: form.zone.trim() || "구역 미입력",
-      photo: form.photo,
-      memo: form.memo.trim() || "메모 없음",
-      timestamp: formatTimestamp(savedAt),
-      savedAtTimestamp: savedAt.getTime(),
-      isTimeTrackEnabled: form.isTimeTrackEnabled,
-    };
+    setParkingRecord((prev) => {
+      if (!prev) return prev;
 
-    setParkingRecord(record);
-    setTimeOffsetMinutes(0);
-    lastNotifiedThresholdRef.current = 0;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+      const updated: ParkingRecord = {
+        ...prev,
+        floorType: form.floorType,
+        floorNum: form.floorNum,
+        customFloorValue: form.customFloorValue,
+        floor: buildFloorLabel(form.floorType, form.floorNum, form.customFloorValue),
+        zone: form.zone.trim(),
+        photo: form.photo,
+        memo: form.memo.trim(),
+      };
 
-    navigateTo("success");
-    showToast("성공적으로 저장되었습니다.", "success");
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+
+    navigateTo("detail");
+    showToast("정보가 저장되었습니다.", "success");
   }, [form, navigateTo, showToast]);
 
   const deleteParkingRecord = useCallback(() => {
@@ -252,7 +284,6 @@ export function useParkingApp() {
     setIsNotificationOpen(false);
 
     window.localStorage.removeItem(STORAGE_KEY);
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
 
     resetForm();
     navigateTo("home-empty", { replaceHistory: true });
@@ -266,15 +297,13 @@ export function useParkingApp() {
       floorType: parkingRecord.floorType,
       floorNum: parkingRecord.floorNum,
       customFloorValue: parkingRecord.customFloorValue,
-      zone: parkingRecord.zone === "구역 미입력" ? "" : parkingRecord.zone,
+      zone: parkingRecord.zone,
       photo: parkingRecord.photo,
-      memo: parkingRecord.memo === "메모 없음" ? "" : parkingRecord.memo,
-      isTimeTrackEnabled: parkingRecord.isTimeTrackEnabled,
+      memo: parkingRecord.memo,
     });
 
     navigateTo("record");
-    showToast("기존 정보를 편집할 수 있습니다.");
-  }, [navigateTo, parkingRecord, showToast]);
+  }, [navigateTo, parkingRecord]);
 
   const clearNotif = useCallback(() => {
     if (!parkingRecord) {
@@ -301,88 +330,49 @@ export function useParkingApp() {
 
   // 30분 단위 경과 알림
   useEffect(() => {
-    if (!parkingRecord || !parkingRecord.isTimeTrackEnabled) return;
+    if (!parkingRecord) return;
     if (elapsedMinutes > 0 && elapsedMinutes % 30 === 0 && lastNotifiedThresholdRef.current !== elapsedMinutes) {
       lastNotifiedThresholdRef.current = elapsedMinutes;
       showToast(`[알림] 주차 시간 ${elapsedMinutes}분 경과`, "warning");
     }
   }, [elapsedMinutes, parkingRecord, showToast]);
 
-  const toggleAutoDetectSetting = useCallback(
+  const toggleAutoSaveSetting = useCallback(
     (checked: boolean) => {
-      setIsAutoDetectEnabled(checked);
-      window.localStorage.setItem(SETTING_AUTO_DETECT_KEY, String(checked));
-      showToast(checked ? "자동 운행 종료 감지가 활성화되었습니다." : "자동 운행 종료 감지가 중단되었습니다.");
+      setIsAutoSaveEnabled(checked);
+      window.localStorage.setItem(SETTING_AUTO_SAVE_KEY, String(checked));
+      showToast(checked ? "운전 종료 시 위치 자동 저장이 켜졌습니다." : "자동 저장이 꺼졌습니다.");
     },
     [showToast]
   );
-
-  const registerBtDevice = useCallback(
-    (deviceName: string) => {
-      const trimmed = deviceName.trim();
-      if (!trimmed) {
-        showToast("등록할 블루투스 기기명을 입력해 주세요.", "warning");
-        return;
-      }
-      setRegisteredBtDevice(trimmed);
-      window.localStorage.setItem(SETTING_BT_DEVICE_KEY, trimmed);
-      showToast(`블루투스 기기 [${trimmed}] 등록 완료`);
-    },
-    [showToast]
-  );
-
-  const removeBtDevice = useCallback(() => {
-    setRegisteredBtDevice("");
-    window.localStorage.removeItem(SETTING_BT_DEVICE_KEY);
-    showToast("등록된 차량 블루투스 기기가 제거되었습니다.");
-  }, [showToast]);
 
   const triggerSimulatedDriveStart = useCallback(() => {
     setDeviceActivity("driving");
     showToast("차량 운전 주행 상태가 감지되었습니다.");
   }, [showToast]);
 
-  const triggerSimulatedBtConnect = useCallback(() => {
-    if (!registeredBtDevice) {
-      setBtAlertVisible(true);
-      showToast("앱 설정에서 기기 등록이 선행되어야 합니다.", "warning");
-      return;
-    }
-    setDeviceBtConnected(true);
-    showToast(`블루투스 기기 [${registeredBtDevice}] 연결 성공`, "success");
-  }, [registeredBtDevice, showToast]);
-
   const triggerSimulatedDriveEnd = useCallback(() => {
     const previousActivity = deviceActivity;
-    const wasBtConnected = deviceBtConnected;
-
     setDeviceActivity("walking");
-    if (wasBtConnected) setDeviceBtConnected(false);
-
     showToast("시동 종료 및 보행 전환 상태를 감지했습니다.");
 
-    if (!isAutoDetectEnabled) return;
+    if (!isAutoSaveEnabled || previousActivity !== "driving") return;
 
-    const isBluetoothPath = Boolean(registeredBtDevice) && wasBtConnected;
-    const isPureMotionPath = !registeredBtDevice && previousActivity === "driving";
+    window.setTimeout(() => {
+      const record = saveLocationSnapshot("auto");
+      setAutoSaveNotice({ visible: true, accuracyMeters: record.accuracyMeters });
+      goToHomeSavedNow();
+    }, 800);
+  }, [deviceActivity, goToHomeSavedNow, isAutoSaveEnabled, saveLocationSnapshot, showToast]);
 
-    if (isBluetoothPath || isPureMotionPath) {
-      window.setTimeout(() => {
-        setArrivalAlert({ visible: true, isBluetoothPath });
-      }, 800);
-    }
-  }, [deviceActivity, deviceBtConnected, isAutoDetectEnabled, registeredBtDevice, showToast]);
-
-  const hideArrivalPushAlert = useCallback(() => {
-    setArrivalAlert((prev) => ({ ...prev, visible: false }));
+  const hideAutoSaveNotice = useCallback(() => {
+    setAutoSaveNotice((prev) => ({ ...prev, visible: false }));
   }, []);
 
-  const confirmArrivalAndRecord = useCallback(() => {
-    hideArrivalPushAlert();
+  const goAddDetailsFromNotice = useCallback(() => {
+    hideAutoSaveNotice();
     navigateTo("record");
-  }, [hideArrivalPushAlert, navigateTo]);
-
-  const hideBtAlert = useCallback(() => setBtAlertVisible(false), []);
+  }, [hideAutoSaveNotice, navigateTo]);
 
   return {
     hydrated,
@@ -392,12 +382,9 @@ export function useParkingApp() {
     form,
     isNotificationOpen,
     toast,
-    isAutoDetectEnabled,
-    registeredBtDevice,
+    isAutoSaveEnabled,
     deviceActivity,
-    deviceBtConnected,
-    arrivalAlert,
-    btAlertVisible,
+    autoSaveNotice,
     elapsedMinutes,
 
     navigateTo,
@@ -415,24 +402,21 @@ export function useParkingApp() {
     triggerDemoPhoto,
     clearPhoto,
     autoFillMockData,
-    saveParkingData,
+    saveDetails,
     resetForm,
+    recordLocationManually,
 
     deleteParkingRecord,
     editParking,
     clearNotif,
     addTimeOffset,
 
-    toggleAutoDetectSetting,
-    registerBtDevice,
-    removeBtDevice,
+    toggleAutoSaveSetting,
 
     triggerSimulatedDriveStart,
-    triggerSimulatedBtConnect,
     triggerSimulatedDriveEnd,
-    hideArrivalPushAlert,
-    confirmArrivalAndRecord,
-    hideBtAlert,
+    hideAutoSaveNotice,
+    goAddDetailsFromNotice,
 
     showToast,
   };

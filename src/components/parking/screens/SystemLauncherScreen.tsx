@@ -72,28 +72,34 @@ export function SystemLauncherScreen({
 
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-black text-slate-800 leading-tight">
-                  <span>{record.floor}</span>
-                  <span className="text-indigo-600 ml-1">{record.zone}</span>
+                  {record.floor && record.zone ? (
+                    <>
+                      <span>{record.floor}</span>
+                      <span className="text-indigo-600 ml-1">{record.zone}</span>
+                    </>
+                  ) : (
+                    <span>위치 저장됨</span>
+                  )}
                 </h4>
 
-                <p className="text-[10px] text-slate-500 truncate mt-1">{record.memo}</p>
+                <p className="text-[10px] text-slate-500 truncate mt-1">
+                  {record.memo || `오차 약 ${record.accuracyMeters}m`}
+                </p>
 
-                {record.isTimeTrackEnabled && (
-                  <div className="flex items-center gap-1.5 mt-1 text-[10px] font-black text-amber-600 bg-amber-100/60 px-2 py-0.5 rounded-lg w-max">
-                    <i className="fa-solid fa-clock-rotate-left"></i>
-                    <span>경과: {elapsedMinutes}분</span>
+                <div className="flex items-center gap-1.5 mt-1 text-[10px] font-black text-amber-600 bg-amber-100/60 px-2 py-0.5 rounded-lg w-max">
+                  <i className="fa-solid fa-clock-rotate-left"></i>
+                  <span>경과: {elapsedMinutes}분</span>
 
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onAddTimeOffset(30);
-                      }}
-                      className="text-[8px] bg-amber-600 text-white font-bold px-1 rounded hover:bg-amber-700"
-                    >
-                      +30분
-                    </button>
-                  </div>
-                )}
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onAddTimeOffset(30);
+                    }}
+                    className="text-[8px] bg-amber-600 text-white font-bold px-1 rounded hover:bg-amber-700"
+                  >
+                    +30분
+                  </button>
+                </div>
 
                 <div className="flex gap-1.5 mt-2.5">
                   <button

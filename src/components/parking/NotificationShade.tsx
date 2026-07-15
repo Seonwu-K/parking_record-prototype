@@ -75,16 +75,16 @@ export function NotificationShade({
                 </div>
 
                 <h5 className="text-sm font-black text-white">
-                  {record.floor} {record.zone}
+                  {record.floor && record.zone ? `${record.floor} ${record.zone}` : "위치 저장됨"}
                 </h5>
 
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <p className="text-[11px] text-slate-400 truncate">{record.memo}</p>
-                  {record.isTimeTrackEnabled && (
-                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">
-                      ⏱ {elapsedMinutes}분 경과
-                    </span>
-                  )}
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {record.memo || `오차 약 ${record.accuracyMeters}m`}
+                  </p>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">
+                    ⏱ {elapsedMinutes}분 경과
+                  </span>
                 </div>
 
                 <div className="flex gap-2 mt-3 flex-wrap">
@@ -105,17 +105,15 @@ export function NotificationShade({
                     기록 지우기
                   </button>
 
-                  {record.isTimeTrackEnabled && (
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onAddTimeOffset(30);
-                      }}
-                      className="bg-amber-600/30 text-amber-300 hover:bg-amber-600/50 text-[10px] font-bold py-1.5 px-3 rounded-lg border border-amber-500/30"
-                    >
-                      +30분
-                    </button>
-                  )}
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onAddTimeOffset(30);
+                    }}
+                    className="bg-amber-600/30 text-amber-300 hover:bg-amber-600/50 text-[10px] font-bold py-1.5 px-3 rounded-lg border border-amber-500/30"
+                  >
+                    +30분
+                  </button>
                 </div>
               </div>
             </div>

@@ -1,15 +1,10 @@
-export type ScreenId =
-  | "home-empty"
-  | "home-saved"
-  | "record"
-  | "success"
-  | "detail"
-  | "settings"
-  | "system-launcher";
+export type ScreenId = "home-empty" | "home-saved" | "record" | "detail" | "settings" | "system-launcher";
 
 export type ToastType = "info" | "success" | "warning";
 
 export type DeviceActivity = "resting" | "driving" | "walking";
+
+export type RecordSource = "auto" | "manual";
 
 export type ParkingRecord = {
   floorType: string;
@@ -21,7 +16,8 @@ export type ParkingRecord = {
   memo: string;
   timestamp: string;
   savedAtTimestamp: number;
-  isTimeTrackEnabled: boolean;
+  accuracyMeters: number;
+  source: RecordSource;
 };
 
 export type ParkingFormState = {
@@ -31,10 +27,14 @@ export type ParkingFormState = {
   zone: string;
   photo: string | null;
   memo: string;
-  isTimeTrackEnabled: boolean;
 };
 
 export type ToastState = {
   message: string;
   type: ToastType;
 } | null;
+
+export type AutoSaveNoticeState = {
+  visible: boolean;
+  accuracyMeters: number;
+};

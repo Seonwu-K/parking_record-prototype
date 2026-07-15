@@ -1,24 +1,14 @@
-import { useRef } from "react";
-
 export function SettingsScreen({
   active,
-  isAutoDetectEnabled,
-  registeredBtDevice,
+  isAutoSaveEnabled,
   onBack,
-  onToggleAutoDetect,
-  onRegisterBtDevice,
-  onRemoveBtDevice,
+  onToggleAutoSave,
 }: {
   active: boolean;
-  isAutoDetectEnabled: boolean;
-  registeredBtDevice: string;
+  isAutoSaveEnabled: boolean;
   onBack: () => void;
-  onToggleAutoDetect: (checked: boolean) => void;
-  onRegisterBtDevice: (name: string) => void;
-  onRemoveBtDevice: () => void;
+  onToggleAutoSave: (checked: boolean) => void;
 }) {
-  const btInputRef = useRef<HTMLInputElement>(null);
-
   return (
     <section
       className={`absolute inset-0 bg-white flex flex-col justify-between p-6 z-30 transition-all duration-300 transform ${
@@ -35,64 +25,35 @@ export function SettingsScreen({
 
       <div className="flex-1 overflow-y-auto no-scrollbar py-4 space-y-5">
         <div className="space-y-2.5">
-          <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">알림 및 연동</h4>
+          <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">위치 자동 저장</h4>
 
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <label className="text-xs font-black text-slate-700">자동 주행 종료 감지 알림</label>
+              <label className="text-xs font-black text-slate-700">운전 종료 시 위치 자동 저장</label>
               <p className="text-[10px] text-slate-400 mt-1 leading-normal">
-                운전 종료 후 걷기 상태로 바뀔 때 주차 유도 알림을 띄웁니다.
+                운전이 끝나고 걷기 상태로 바뀌면 현재 위치와 시간을 자동으로 기록해요. 꺼두면 직접 기록해야
+                해요.
               </p>
             </div>
 
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
               <input
                 type="checkbox"
-                checked={isAutoDetectEnabled}
-                onChange={(event) => onToggleAutoDetect(event.target.checked)}
+                checked={isAutoSaveEnabled}
+                onChange={(event) => onToggleAutoSave(event.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
             </label>
           </div>
-        </div>
 
-        <div className="space-y-2.5">
-          <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">블루투스 연동 (선택 사항)</h4>
-
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-            <div className="flex-1 min-w-0">
-              <label className="text-xs font-black text-slate-700">차량 블루투스 기기 등록</label>
-              <p className="text-[10px] text-slate-400 mt-1 leading-normal">
-                차량 블루투스가 끊기고 걷기 상태가 될 때 감지 정확도를 높여 알림을 보냅니다.
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <input
-                key={registeredBtDevice}
-                ref={btInputRef}
-                type="text"
-                defaultValue={registeredBtDevice}
-                placeholder="예: My_Car_BT"
-                className="flex-1 bg-white border border-slate-200 focus:border-indigo-500 rounded-lg py-2 px-3 text-xs font-semibold text-slate-800"
-              />
-              <button
-                onClick={() => onRegisterBtDevice(btInputRef.current?.value ?? "")}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-3 rounded-lg"
-              >
-                등록
-              </button>
-            </div>
-
-            {registeredBtDevice && (
-              <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 p-1.5 px-2 rounded-lg mt-1 w-max flex items-center gap-1">
-                <i className="fa-solid fa-link"></i> <span>{registeredBtDevice} 등록됨</span>
-                <button onClick={onRemoveBtDevice} className="text-slate-400 hover:text-red-500 ml-1.5">
-                  <i className="fa-solid fa-circle-xmark"></i>
-                </button>
-              </div>
-            )}
+          <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl flex gap-2.5">
+            <i className="fa-solid fa-circle-info text-indigo-500 mt-0.5"></i>
+            <p className="text-[11px] text-indigo-900 leading-relaxed">
+              야외·지상 주차장에서 가장 정확하게 동작해요. 지하·실내 주차장에서는 위치가 부정확하거나 건물
+              입구로 저장될 수 있어요. 차량 블루투스 연동으로 감지 정확도를 높이는 기능은 추후 지원할
+              예정이에요.
+            </p>
           </div>
         </div>
       </div>

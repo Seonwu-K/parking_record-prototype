@@ -1,13 +1,30 @@
-export const STORAGE_KEY = "last_parking_data_v2.0";
-export const LEGACY_STORAGE_KEY = "last_parking_data_v1.9";
+export const STORAGE_KEY = "last_parking_data_v3.0";
+export const LEGACY_STORAGE_KEY = "last_parking_data_v2.0";
 
-export const SETTING_AUTO_DETECT_KEY = "setting_auto_detect";
-export const SETTING_BT_DEVICE_KEY = "setting_bt_device";
+export const SETTING_AUTO_SAVE_KEY = "setting_auto_save";
 
 export const DEMO_PARKING_PHOTOS = [
   "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?q=80&w=600&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600&auto=format&fit=crop",
 ];
+
+export function generateAccuracyMeters(): number {
+  return Math.round(8 + Math.random() * 55);
+}
+
+const COMPASS_DIRECTIONS = ["북", "북동", "동", "남동", "남", "남서", "서", "북서"];
+
+export function generateCarLocationHint(): { distanceMeters: number; bearingDeg: number } {
+  return {
+    distanceMeters: Math.round(20 + Math.random() * 280),
+    bearingDeg: Math.round(Math.random() * 359),
+  };
+}
+
+export function bearingToDirectionLabel(bearingDeg: number): string {
+  const index = Math.round(bearingDeg / 45) % 8;
+  return COMPASS_DIRECTIONS[index];
+}
 
 export function buildFloorLabel(
   floorType: string,

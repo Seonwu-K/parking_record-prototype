@@ -3,9 +3,11 @@ import type { ScreenId } from "../types";
 export function HomeEmptyScreen({
   active,
   onNavigate,
+  onRecordNow,
 }: {
   active: boolean;
   onNavigate: (screen: ScreenId) => void;
+  onRecordNow: () => void;
 }) {
   return (
     <section
@@ -39,16 +41,20 @@ export function HomeEmptyScreen({
 
         <h2 className="text-lg font-bold text-slate-800 mb-2">마지막으로 주차한 위치가 없습니다</h2>
 
-        <p className="text-sm text-slate-400 leading-relaxed">층, 구역, 사진과 메모를 간단하게 남겨보세요.</p>
+        <p className="text-sm text-slate-400 leading-relaxed">
+          운전을 마치면 위치가 자동으로 저장돼요.
+          <br />
+          지금 바로 기록할 수도 있어요.
+        </p>
       </div>
 
       <div className="pb-6">
         <button
-          onClick={() => onNavigate("record")}
+          onClick={onRecordNow}
           className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-transform text-white py-4 px-6 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-indigo-600/20"
         >
-          <i className="fa-solid fa-camera text-xl"></i>
-          <span>주차 위치 기록하기</span>
+          <i className="fa-solid fa-location-dot text-xl"></i>
+          <span>지금 위치 기록하기</span>
         </button>
       </div>
     </section>

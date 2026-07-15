@@ -55,10 +55,14 @@ export function RecordScreen({
           <i className="fa-solid fa-arrow-left"></i>
         </button>
 
-        <span className="text-base font-bold text-slate-800">주차 기록하기</span>
+        <span className="text-base font-bold text-slate-800">정보 추가하기 (선택)</span>
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar py-4 space-y-4">
+        <p className="text-[11px] text-slate-400 px-0.5">
+          위치와 시간은 이미 저장되어 있어요. 필요한 항목만 골라서 추가하면 돼요.
+        </p>
+
         <div className="space-y-2 relative z-10">
           <label className="text-xs font-black text-slate-600 flex items-center gap-1.5">
             <span className="bg-indigo-100 text-indigo-700 w-4 h-4 rounded-full flex items-center justify-center text-[9px]">
@@ -190,29 +194,6 @@ export function RecordScreen({
           />
         </div>
 
-        <div className="space-y-1.5 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-              <i className="fa-solid fa-clock text-indigo-600"></i>
-              유료 주차 시간 알림 받기
-            </label>
-
-            <p className="text-[10px] text-slate-400 mt-1 leading-normal">
-              체크 시 경과 시간을 기록하고 30분 단위 안내 알림을 표시합니다.
-            </p>
-          </div>
-
-          <label className="relative inline-flex items-center cursor-pointer shrink-0">
-            <input
-              type="checkbox"
-              checked={form.isTimeTrackEnabled}
-              onChange={(event) => onUpdateForm({ isTimeTrackEnabled: event.target.checked })}
-              className="sr-only peer"
-            />
-            <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-          </label>
-        </div>
-
         <div className="bg-indigo-50 border border-indigo-100/70 rounded-xl p-3 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 relative">
@@ -238,7 +219,7 @@ export function RecordScreen({
           onClick={onSave}
           className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white py-4 rounded-2xl font-bold text-sm shadow-md"
         >
-          현재 위치 저장하기
+          정보 저장하기
         </button>
       </div>
     </section>

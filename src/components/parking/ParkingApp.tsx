@@ -4,27 +4,34 @@ import { useEffect, useRef } from "react";
 import { useParkingApp } from "./useParkingApp";
 import { SensorGuidePanel } from "./SensorGuidePanel";
 import { NotificationShade } from "./NotificationShade";
-import { ArrivalPushAlert } from "./ArrivalPushAlert";
-import { BtAlertModal } from "./BtAlertModal";
+import { AutoSaveNotice } from "./AutoSaveNotice";
 import { Toast } from "./Toast";
 import { HomeEmptyScreen } from "./screens/HomeEmptyScreen";
 import { HomeSavedScreen } from "./screens/HomeSavedScreen";
 import { RecordScreen } from "./screens/RecordScreen";
-import { SuccessScreen } from "./screens/SuccessScreen";
 import { DetailScreen } from "./screens/DetailScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SystemLauncherScreen } from "./screens/SystemLauncherScreen";
 
 export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) {
   const app = useParkingApp();
-  const hasNotifiedRef = useRef(false);
+  const lastSavedRef = useRef<number | null | "unset">("unset");
 
   useEffect(() => {
-    if (app.currentScreen === "success" && !hasNotifiedRef.current) {
-      hasNotifiedRef.current = true;
+    if (!app.hydrated) return;
+
+    const savedAt = app.parkingRecord?.savedAtTimestamp ?? null;
+
+    if (lastSavedRef.current === "unset") {
+      lastSavedRef.current = savedAt;
+      return;
+    }
+
+    if (savedAt !== null && savedAt !== lastSavedRef.current) {
+      lastSavedRef.current = savedAt;
       onSaveComplete?.();
     }
-  }, [app.currentScreen, onSaveComplete]);
+  }, [app.hydrated, app.parkingRecord, onSaveComplete]);
 
   if (!app.hydrated) {
     return <div className="flex-1 bg-slate-100" />;
@@ -34,10 +41,7 @@ export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) 
     <div className="flex-1 text-slate-800 flex flex-col lg:flex-row overflow-x-hidden">
       <SensorGuidePanel
         deviceActivity={app.deviceActivity}
-        deviceBtConnected={app.deviceBtConnected}
-        registeredBtDevice={app.registeredBtDevice}
         onDriveStart={app.triggerSimulatedDriveStart}
-        onBtConnect={app.triggerSimulatedBtConnect}
         onDriveEnd={app.triggerSimulatedDriveEnd}
       />
 
@@ -58,9 +62,7 @@ export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) 
             </div>
 
             <div className="flex items-center gap-1.5">
-              {app.parkingRecord?.isTimeTrackEnabled && (
-                <i className="fa-solid fa-clock text-indigo-600 animate-pulse"></i>
-              )}
+              {app.parkingRecord && <i className="fa-solid fa-clock text-indigo-600 animate-pulse"></i>}
               {app.parkingRecord && <i className="fa-solid fa-square-parking text-indigo-600"></i>}
               <i className="fa-solid fa-wifi"></i>
               <i className="fa-solid fa-signal"></i>
@@ -94,7 +96,11 @@ export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) 
               onAddTimeOffset={app.addTimeOffset}
             />
 
-            <HomeEmptyScreen active={app.currentScreen === "home-empty"} onNavigate={app.navigateTo} />
+            <HomeEmptyScreen
+              active={app.currentScreen === "home-empty"}
+              onNavigate={app.navigateTo}
+              onRecordNow={app.recordLocationManually}
+            />
 
             {app.parkingRecord && (
               <HomeSavedScreen
@@ -104,6 +110,7 @@ export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) 
                 onNavigate={app.navigateTo}
                 onDelete={app.deleteParkingRecord}
                 onAddTimeOffset={app.addTimeOffset}
+                onRecordAgain={app.recordLocationManually}
               />
             )}
 
@@ -118,13 +125,7 @@ export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) 
               onTriggerDemoPhoto={app.triggerDemoPhoto}
               onClearPhoto={app.clearPhoto}
               onAutoFill={app.autoFillMockData}
-              onSave={app.saveParkingData}
-            />
-
-            <SuccessScreen
-              active={app.currentScreen === "success"}
-              record={app.parkingRecord}
-              onGoHome={() => app.navigateTo("home-saved")}
+              onSave={app.saveDetails}
             />
 
             <DetailScreen
@@ -133,37 +134,21 @@ export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) 
               onBack={() => app.navigateTo("home-saved")}
               onEdit={app.editParking}
               onDelete={app.deleteParkingRecord}
-              onRecordNew={() => {
-                app.resetForm();
-                app.navigateTo("record");
-              }}
+              onRecordAgain={app.recordLocationManually}
             />
 
             <SettingsScreen
               active={app.currentScreen === "settings"}
-              isAutoDetectEnabled={app.isAutoDetectEnabled}
-              registeredBtDevice={app.registeredBtDevice}
+              isAutoSaveEnabled={app.isAutoSaveEnabled}
               onBack={app.backToPrevScreen}
-              onToggleAutoDetect={app.toggleAutoDetectSetting}
-              onRegisterBtDevice={app.registerBtDevice}
-              onRemoveBtDevice={app.removeBtDevice}
+              onToggleAutoSave={app.toggleAutoSaveSetting}
             />
 
-            <ArrivalPushAlert
-              visible={app.arrivalAlert.visible}
-              isBluetoothPath={app.arrivalAlert.isBluetoothPath}
-              registeredBtDevice={app.registeredBtDevice}
-              onDismiss={app.hideArrivalPushAlert}
-              onConfirm={app.confirmArrivalAndRecord}
-            />
-
-            <BtAlertModal
-              visible={app.btAlertVisible}
-              onClose={app.hideBtAlert}
-              onOpenSettings={() => {
-                app.hideBtAlert();
-                app.navigateTo("settings");
-              }}
+            <AutoSaveNotice
+              visible={app.autoSaveNotice.visible}
+              accuracyMeters={app.autoSaveNotice.accuracyMeters}
+              onDismiss={app.hideAutoSaveNotice}
+              onAddDetails={app.goAddDetailsFromNotice}
             />
 
             <Toast toast={app.toast} />
@@ -179,7 +164,7 @@ export function ParkingApp({ onSaveComplete }: { onSaveComplete?: () => void }) 
             </button>
 
             <button
-              onClick={() => app.showToast("마지막 주차 프로토타입 v2.3 입니다.")}
+              onClick={() => app.showToast("마지막 주차 프로토타입 v3.0 입니다.")}
               className="hover:text-indigo-600 w-12 h-12 flex items-center justify-center"
             >
               <i className="fa-regular fa-square text-xs"></i>

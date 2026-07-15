@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { PhonePreview } from "./PhonePreview";
+import { CompassCard } from "@/components/shared/CompassCard";
 
 const PROBLEM_SOLUTION_PAIRS = [
   {
-    problem: "지하 주차장에서 층수랑 구역을 헷갈려서 한참 헤맨 적, 있으신가요?",
-    icon: "fa-solid fa-camera",
-    solutionTitle: "10초 만에 기록",
-    solutionDescription: "층, 구역, 사진, 메모를 간단히 입력해 마지막 주차 위치를 바로 남길 수 있어요.",
+    problem: "대형마트, 휴게소, 공영주차장처럼 넓은 야외 주차장에서 차를 어디 세웠는지 잊은 적 있으신가요?",
+    icon: "fa-solid fa-location-dot",
+    solutionTitle: "운전 종료 자동 감지·저장",
+    solutionDescription: "운전을 마치고 걷기 시작하면 위치와 시간이 자동으로 저장돼요. 층·구역·사진은 원할 때만 추가하면 돼요.",
+  },
+  {
+    problem: "저장해둔 위치까지 다시 걸어갈 때 방향을 몰라 헤맨 적은요?",
+    icon: "fa-solid fa-location-crosshairs",
+    solutionTitle: "차량 위치 찾기",
+    solutionDescription: "내 위치와 차량 위치를 함께 보여주고, 거리와 방향을 안내해요.",
   },
   {
     problem: "유료 주차장에서 얼마나 오래 세워뒀는지 몰라 요금이 헷갈렸던 적은요?",
@@ -14,29 +21,32 @@ const PROBLEM_SOLUTION_PAIRS = [
     solutionTitle: "주차 시간 자동 측정",
     solutionDescription: "요금 계산에 참고할 수 있도록 경과 시간을 30분 단위로 알려드려요.",
   },
-  {
-    problem: "주차하고 나서 사진을 찍든 메모를 하든, 기록 자체를 깜빡한 적은요?",
-    icon: "fa-solid fa-bell",
-    solutionTitle: "운행 종료 자동 감지",
-    solutionDescription: "운전을 마치고 걷기 시작하면 자동으로 주차 위치를 기록할지 물어봐요.",
-  },
+];
+
+const TARGET_PLACES = [
+  "대형마트·아울렛 지상 주차장",
+  "공원·관광지·축제장 임시주차장",
+  "휴게소·캠핑장",
+  "공영 노외주차장",
+  "아파트 지상 주차장",
+  "골프장·경기장·놀이공원 주차장",
 ];
 
 const HOW_IT_WORKS = [
   {
     step: "1",
-    title: "차를 대고 기록해요",
-    description: "층·구역·사진·메모를 10초 안에 남겨요. 운행이 끝나면 자동으로 물어봐 주기도 해요.",
+    title: "운전이 끝나면 자동으로 저장돼요",
+    description: "걷기 상태로 바뀌는 순간 현재 위치와 시간이 자동으로 기록돼요. 직접 갱신하고 싶을 때도 언제든 가능해요.",
   },
   {
     step: "2",
-    title: "필요할 때 홈에서 바로 확인해요",
-    description: "앱을 열자마자, 혹은 홈 화면 위젯과 알림에서 바로 마지막 주차 위치를 볼 수 있어요.",
+    title: "필요하면 층·구역·사진을 더해요",
+    description: "저장은 자동이지만, 층수·구역·사진·메모는 원할 때만 선택적으로 추가하면 돼요.",
   },
   {
     step: "3",
-    title: "유료 주차장이면 경과 시간도 같이 봐요",
-    description: "30분 단위로 경과 시간을 알려줘서 요금 계산할 때 참고할 수 있어요.",
+    title: "다시 찾아갈 때 방향을 안내받아요",
+    description: "내 위치와 차량 위치를 함께 보여주고, 거리와 방향을 알려줘서 헤매지 않게 도와줘요.",
   },
 ];
 
@@ -49,18 +59,18 @@ export function LandingPage() {
 
         <div className="max-w-5xl mx-auto px-6 pt-20 pb-20 grid lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
           <div className="text-center lg:text-left">
-            <span className="inline-block bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-full mb-5">
+            <span className="inline-block bg-indigo-50 text-indigo-700 text-xs px-3 py-1.5 rounded-full mb-5 font-bold">
               프로토타입 · 사용자 피드백 수집 중
             </span>
 
             <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight mb-5">
-              또 주차장에서
+              야외 주차장에서
               <br />
               차를 못 찾고 계신가요?
             </h1>
 
             <p className="text-slate-500 text-base sm:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed mb-9">
-              아파트·대형마트·복합시설 주차장에서 마지막으로 주차한 위치를 기억 못 해 헤매는 시간을 줄여주는
+              운전 종료 후 현재 지도 위치를 자동으로 기록하고, 지도에서 내 위치와 차량 위치를 함께 확인하는
               앱이에요. 지금 30초면 실제 화면처럼 체험해볼 수 있어요.
             </p>
 
@@ -84,7 +94,7 @@ export function LandingPage() {
       <section className="max-w-5xl mx-auto px-6 py-20">
         <div className="text-center mb-12">
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3">이런 경험, 있으신가요?</h2>
-          <p className="text-slate-500">주차장에서 흔히 겪는 불편을 하나씩 해결해봤어요.</p>
+          <p className="text-slate-500">넓은 야외 주차장에서 흔히 겪는 불편을 하나씩 해결해봤어요.</p>
         </div>
 
         <div className="space-y-5">
@@ -118,30 +128,70 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* 사용 흐름 */}
+      {/* 차량 위치 찾기 비주얼 */}
       <section className="bg-slate-50 border-y border-slate-200">
-        <div className="max-w-5xl mx-auto px-6 py-20">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3">이렇게 사용해요</h2>
-            <p className="text-slate-500">복잡한 설정 없이, 딱 세 단계예요.</p>
+        <div className="max-w-5xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3">
+              차량 위치, 헤매지 않고 찾아가요
+            </h2>
+            <p className="text-slate-500 leading-relaxed mb-6">
+              저장된 차량 위치와 지금 내 위치를 함께 보여주고, 거리와 방향을 안내해요. 넓은 야외 주차장에서도
+              걸어가야 할 방향이 한눈에 보여요.
+            </p>
+            <CompassCard
+              distanceMeters={120}
+              bearingDeg={45}
+              directionLabel="북동"
+              caption="예시 화면이에요. 실제 거리와 방향은 저장된 위치 기준으로 계산돼요."
+            />
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-6">
-            {HOW_IT_WORKS.map((item) => (
-              <div key={item.step} className="bg-white border border-slate-200 rounded-3xl p-6">
-                <span className="inline-flex w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 font-black items-center justify-center mb-4">
-                  {item.step}
-                </span>
-                <h3 className="font-bold text-slate-900 mb-1.5">{item.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{item.description}</p>
-              </div>
-            ))}
+          <div className="bg-white border border-slate-200 rounded-3xl p-8">
+            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-tree text-emerald-600"></i>
+              야외·지상 주차장에서 가장 잘 동작해요
+            </h3>
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm text-slate-600 mb-5">
+              {TARGET_PLACES.map((place) => (
+                <li key={place} className="flex items-start gap-1.5">
+                  <i className="fa-solid fa-check text-emerald-500 text-xs mt-1"></i>
+                  <span>{place}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 flex gap-2.5">
+              <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                지하 또는 실내 주차장에서는 위치가 부정확하거나 건물 입구 위치로 저장될 수 있어요.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 투명성 / 신뢰 */}
+      {/* 사용 흐름 */}
       <section className="max-w-5xl mx-auto px-6 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3">이렇게 사용해요</h2>
+          <p className="text-slate-500">복잡한 설정 없이, 딱 세 단계예요.</p>
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-6">
+          {HOW_IT_WORKS.map((item) => (
+            <div key={item.step} className="bg-slate-50 border border-slate-200 rounded-3xl p-6">
+              <span className="inline-flex w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 font-black items-center justify-center mb-4">
+                {item.step}
+              </span>
+              <h3 className="font-bold text-slate-900 mb-1.5">{item.title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 투명성 / 신뢰 */}
+      <section className="max-w-5xl mx-auto px-6 pb-20">
         <div className="grid sm:grid-cols-[auto_1fr] gap-5 items-start bg-indigo-50/60 border border-indigo-100 rounded-3xl p-8">
           <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-lg shrink-0">
             <i className="fa-solid fa-flask"></i>

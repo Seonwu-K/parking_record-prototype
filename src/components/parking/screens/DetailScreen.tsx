@@ -1,3 +1,4 @@
+import { CarFinder } from "../CarFinder";
 import type { ParkingRecord } from "../types";
 
 export function DetailScreen({
@@ -6,15 +7,17 @@ export function DetailScreen({
   onBack,
   onEdit,
   onDelete,
-  onRecordNew,
+  onRecordAgain,
 }: {
   active: boolean;
   record: ParkingRecord | null;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onRecordNew: () => void;
+  onRecordAgain: () => void;
 }) {
+  const hasDetails = Boolean(record?.floor || record?.zone || record?.photo || record?.memo);
+
   return (
     <section
       className={`absolute inset-0 bg-white flex flex-col justify-between p-6 z-10 transition-all duration-300 transform ${
@@ -36,13 +39,13 @@ export function DetailScreen({
             <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl p-5 flex items-center justify-between shadow-sm">
               <div>
                 <span className="text-[10px] text-indigo-200 bg-indigo-900/50 px-2 py-0.5 rounded-md font-bold">
-                  마지막 주차
+                  {record.source === "auto" ? "자동 저장됨" : "마지막 주차"}
                 </span>
 
-                <h4 className="text-2xl font-black mt-1">
-                  <span>{record.floor}</span>
-                  <span className="text-indigo-300 ml-1">{record.zone}</span>
+                <h4 className="text-xl font-black mt-1">
+                  {record.floor && record.zone ? `${record.floor} ${record.zone}` : "위치 저장됨"}
                 </h4>
+                <p className="text-[11px] text-indigo-200 mt-1">저장 당시 오차 약 {record.accuracyMeters}m</p>
               </div>
 
               <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -50,38 +53,33 @@ export function DetailScreen({
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-400">저장된 주차 구역 사진</span>
+            <CarFinder />
 
-              <div className="bg-slate-100 rounded-2xl overflow-hidden h-52 flex items-center justify-center border border-slate-200">
-                {record.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={record.photo} className="w-full h-full object-cover" alt="저장된 사진" />
-                ) : (
-                  <div className="text-slate-400 flex flex-col items-center gap-1">
-                    <i className="fa-regular fa-image text-3xl"></i>
-                    <span className="text-xs">사진이 기록되지 않았습니다</span>
+            {hasDetails ? (
+              <>
+                {record.photo && (
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-bold text-slate-400">저장된 주차 구역 사진</span>
+                    <div className="bg-slate-100 rounded-2xl overflow-hidden h-52 flex items-center justify-center border border-slate-200">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={record.photo} className="w-full h-full object-cover" alt="저장된 사진" />
+                    </div>
                   </div>
                 )}
-              </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <span className="text-xs font-bold text-slate-400">저장한 메모</span>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <p className="text-xs text-slate-700 font-bold leading-relaxed">{record.memo}</p>
-              </div>
-            </div>
-
-            {record.isTimeTrackEnabled && (
-              <div className="flex justify-between items-center text-xs p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                <span className="text-amber-800 font-bold flex items-center gap-1">
-                  <i className="fa-solid fa-clock"></i>
-                  주차 시간 측정
-                </span>
-
-                <span className="font-extrabold text-amber-900 bg-amber-200/50 px-2 py-0.5 rounded">활성화됨</span>
+                {record.memo && (
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-bold text-slate-400">저장한 메모</span>
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-700 font-bold leading-relaxed">{record.memo}</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-5 text-center space-y-2">
+                <i className="fa-regular fa-image text-slate-300 text-2xl"></i>
+                <p className="text-xs text-slate-500">아직 층·구역·사진이 없어요. 필요할 때만 추가하면 돼요.</p>
               </div>
             )}
 
@@ -95,7 +93,7 @@ export function DetailScreen({
             <div className="grid grid-cols-2 gap-2">
               <button onClick={onEdit} className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold text-xs">
                 <i className="fa-solid fa-pen-to-square mr-1"></i>
-                정보 수정
+                {hasDetails ? "정보 수정" : "정보 추가"}
               </button>
 
               <button onClick={onDelete} className="bg-rose-50 hover:bg-rose-100 text-rose-600 py-3 rounded-xl font-bold text-xs">
@@ -105,10 +103,10 @@ export function DetailScreen({
             </div>
 
             <button
-              onClick={onRecordNew}
+              onClick={onRecordAgain}
               className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white py-3.5 rounded-xl font-bold text-xs"
             >
-              새 주차 기록 덮어쓰기
+              지금 위치로 다시 저장하기
             </button>
           </div>
         </>

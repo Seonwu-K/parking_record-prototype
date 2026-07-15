@@ -16,7 +16,7 @@ const notoSansKr = Noto_Sans_KR({
 
 export const metadata: Metadata = {
   title: "마지막 주차 - 주차 위치 기록 프로토타입",
-  description: "주차 위치를 10초 만에 기록하고 빠르게 다시 찾을 수 있게 돕는 프로토타입",
+  description: "야외 주차 후 위치를 자동으로 남기고, 지도에서 현재 위치와 차량 위치를 함께 확인하는 앱",
 };
 
 export default function RootLayout({
